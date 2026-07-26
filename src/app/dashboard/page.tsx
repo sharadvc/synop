@@ -47,7 +47,7 @@ export default function DashboardPage() {
     <div className="flex h-screen bg-background font-sans overflow-hidden">
        {/* Sidebar */}
        <div className="w-64 border-r border-border bg-card/50 flex flex-col p-4 shrink-0 hidden md:flex">
-          <div className="font-extrabold text-xl tracking-tight mb-8 pl-2 cursor-pointer" onClick={() => router.push('/')}>Gist</div>
+          <div className="font-extrabold text-xl tracking-tight mb-8 pl-2 cursor-pointer" onClick={() => router.push('/')}>Synop</div>
           
           <div className="space-y-1 mb-8">
              {tabs.map(tab => (
@@ -83,7 +83,7 @@ export default function DashboardPage() {
        <div className="flex-1 bg-background p-6 md:p-10 overflow-y-auto">
           {/* Mobile Header (Visible only on small screens) */}
           <div className="flex md:hidden items-center justify-between mb-8 pb-4 border-b border-border">
-             <div className="font-extrabold text-xl tracking-tight cursor-pointer" onClick={() => router.push('/')}>Gist</div>
+             <div className="font-extrabold text-xl tracking-tight cursor-pointer" onClick={() => router.push('/')}>Synop</div>
              <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-xs font-bold">D</div>
           </div>
 

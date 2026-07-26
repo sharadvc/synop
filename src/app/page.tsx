@@ -136,7 +136,7 @@ export default function Home() {
           <div className="flex h-[600px] bg-background">
              {/* Sidebar */}
              <div className="w-64 border-r border-border bg-card/50 flex flex-col p-4">
-                <div className="font-extrabold text-xl tracking-tight mb-8 pl-2">Gist</div>
+                <div className="font-extrabold text-xl tracking-tight mb-8 pl-2">Synop</div>
                 
                 <div className="space-y-1 mb-8">
                    <div className="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-foreground/60 hover:bg-accent rounded-lg cursor-pointer">
@@ -304,7 +304,7 @@ export default function Home() {
           <div>
             <h2 className="text-4xl font-extrabold tracking-tight mb-6">Built for those who value their time.</h2>
             <p className="text-foreground/70 font-medium mb-8 leading-relaxed">
-              Whether you are a student cramming for exams, a researcher analyzing hours of interviews, or a professional staying up-to-date with industry trends, Gist is your unfair advantage.
+              Whether you are a student cramming for exams, a researcher analyzing hours of interviews, or a professional staying up-to-date with industry trends, Synop is your unfair advantage.
             </p>
             <ul className="space-y-4">
               {['Students & Educators', 'Researchers & Analysts', 'Productivity Enthusiasts'].map((item, i) => (
@@ -326,7 +326,7 @@ export default function Home() {
                    </div>
                 </div>
                 <p className="italic text-foreground/80 font-medium leading-relaxed">
-                  "I analyze dozens of tech lectures every week. What used to take me 15 hours now takes me exactly 45 minutes. Gist's AI chat feature is literal magic."
+                  "I analyze dozens of tech lectures every week. What used to take me 15 hours now takes me exactly 45 minutes. Synop's AI is literal magic."
                 </p>
              </div>
           </div>
@@ -392,14 +392,14 @@ export default function Home() {
       <footer className="border-t border-border bg-background py-16 px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-2xl tracking-tight text-foreground">Gist</span>
+              <span className="font-extrabold text-2xl tracking-tight text-foreground">Synop</span>
            </div>
            <div className="flex gap-8 text-sm font-semibold text-foreground/60">
               <Link href="#" className="hover:text-primary transition-colors">Privacy</Link>
               <Link href="#" className="hover:text-primary transition-colors">Terms</Link>
               <Link href="#" className="hover:text-primary transition-colors">Twitter</Link>
            </div>
-           <p className="text-xs font-medium text-foreground/40">© 2026 Gist AI. All rights reserved.</p>
+           <p className="text-xs font-medium text-foreground/40">© 2026 Synop. All rights reserved.</p>
         </div>
       </footer>
     </div>

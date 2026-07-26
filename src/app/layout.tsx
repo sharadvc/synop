@@ -14,7 +14,7 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "YouTube Summary AI",
+  title: "Synop — AI Video Summarizer",
   description: "Generate powerful, concise summaries from any YouTube video in seconds.",
 };
 

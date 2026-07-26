@@ -15,7 +15,7 @@ export default function Navbar() {
         
         {/* Logo */}
         <Link href="/" className="flex items-center">
-          <span className="font-extrabold text-2xl tracking-tight text-foreground">Gist</span>
+          <span className="font-extrabold text-2xl tracking-tight text-foreground">Synop</span>
         </Link>
 
         {/* Center Links (Mondays style) */}
