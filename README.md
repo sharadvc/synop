@@ -1,213 +1,125 @@
 <div align="center">
-  <br/>
-  <a href="https://github.com/sharadvc/synop">
-    <img src=".github/social-preview.svg" alt="Synop — AI Video Summarizer" width="800">
-  </a>
-  <br/>
-  <h1>Synop</h1>
-  <p><strong>AI Video Summarizer. Free. Open Source. Private.</strong></p>
-  <p>
-    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License"/></a>
-    <a href="https://nextjs.org"><img src="https://img.shields.io/badge/built%20with-Next.js%2016-black" alt="Next.js 16"/></a>
-    <a href="https://github.com/sharadvc/synop/stargazers"><img src="https://img.shields.io/github/stars/sharadvc/synop?style=flat&color=c8f04e" alt="GitHub Stars"/></a>
-    <a href="https://github.com/sharadvc/synop/issues"><img src="https://img.shields.io/github/issues/sharadvc/synop?style=flat&color=94a3b8" alt="GitHub Issues"/></a>
+  <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/landing.png" alt="Synop - AI YouTube Summarizer" width="100%" />
+
+  <h1 align="center">Synop</h1>
+
+  <p align="center">
+    <strong>Extract High Signal from Noise in YouTube Videos</strong>
+    <br />
+    A free, open-source, locally-hostable AI tool to transform hour-long podcasts, lectures, and tutorials into dense, structured, actionable summaries.
   </p>
-  <p>
-    <b>100% free</b> ·
-    <b>Open source</b> ·
-    <b>No signup required</b> ·
-    <b>Privacy first</b>
+
+  <p align="center">
+    <a href="#features">Features</a> •
+    <a href="#screenshots">Screenshots</a> •
+    <a href="#installation">Installation</a> •
+    <a href="#architecture">Architecture</a>
   </p>
-  <br/>
 </div>
 
 ---
 
-## ✦ What is Synop?
-
-**Synop** turns any YouTube video into a structured, AI-powered summary in seconds. Paste a link — get a TL;DR, key insights, action items, timestamps, quotes, resources, and a verdict.
-
-No signup. No paywall. No tracking. No data collection.
-
-Built for students, professionals, researchers, and content creators who want the substance without the watch time.
-
----
-
-## ✦ Why Synop?
-
-| | Why it's different |
-|---|---|
-| 🆓 | **Completely free** — no credits, no limits, no "upgrade to pro" |
-| 🔓 | **Fully open source** — MIT license. Self-host. Modify. Share. |
-| 🔒 | **Privacy first** — transcripts processed securely, never stored |
-| ⚡ | **Instant** — most summaries in under 30 seconds |
-| 🌐 | **Multi-language** — works with any language YouTube video |
-| 📦 | **Exportable** — copy, PDF, Markdown |
-
----
-
-## ✦ Features
-
-- **AI-Powered Summaries** — structured output with TL;DR, insights, action items, quotes, timestamps, resources, verdict
-- **Smart Extraction** — key quotes automatically surfaced, no searching through hours of content
-- **Timestamps** — jump to any topic in the video instantly
-- **Action Items** — extract actionable takeaways
-- **Multi-language** — works with videos in any language
-- **Responsive UI** — dark mode, works on every device
-- **Dashboard** — track your summary history
-- **Export** — copy to clipboard, PDF, Markdown
-
----
-
-## ✦ Tech Stack
-
-```
-Runtime     → Next.js 16 (App Router, Turbopack)
-Language    → TypeScript
-Database    → SQLite (via Prisma)
-Auth        → Clerk
-Payments    → Stripe
-AI          → OpenRouter / OpenAI SDK
-UI          → Tailwind CSS v4, shadcn/ui, Framer Motion
-Fonts       → Inter + Instrument Serif
-```
-
----
-
-## ✦ Quick Start
-
-```bash
-git clone https://github.com/sharadvc/synop.git
-cd synop
-cp .env.example .env
-npm install
-npx prisma db push
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) and paste a YouTube link.
-
-### Environment Variables
-
-```env
-# Clerk (https://clerk.com)
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_xxx
-CLERK_SECRET_KEY=sk_xxx
-
-# OpenRouter or OpenAI
-OPENROUTER_API_KEY=sk-or-xxx
-
-# Stripe (optional)
-STRIPE_SECRET_KEY=sk_xxx
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-```
-
----
-
-## ✦ How It Works
-
-```
-Paste URL → Extract video ID → Fetch transcript
-  → AI analysis → Structured summary
-  → TL;DR · Insights · Actions · Quotes · Timestamps · Verdict
-```
-
-1. **Extract** — Parse video ID from any YouTube URL format
-2. **Transcribe** — Fetch transcript via `youtube-transcript`
-3. **Clean** — Remove noise markers, normalize whitespace
-4. **Analyze** — LLM produces structured JSON output
-5. **Render** — Beautiful tabbed UI with all sections
-
----
-
-## ✦ Project Structure
-
-```
-src/
-├── app/
-│   ├── api/summarize/     # POST — processes YouTube video → summary
-│   ├── dashboard/         # User dashboard with history
-│   ├── summary/[id]/      # Summary detail page
-│   ├── settings/          # User settings
-│   ├── sign-in/           # Clerk sign-in
-│   ├── sign-up/           # Clerk sign-up
-│   ├── layout.tsx         # Root layout
-│   ├── page.tsx           # Landing page
-│   └── globals.css        # Tailwind + shadcn theme
-├── components/
-│   ├── Navbar.tsx         # Navigation
-│   └── ui/                # shadcn/ui components
-└── lib/
-    ├── youtube.ts         # YouTube transcript extraction
-    ├── summarizer.ts      # Transcript cleaning
-    └── utils.ts           # Shared helpers
-```
-
----
-
-## ✦ Deployment
-
-### Vercel (Recommended — Free)
-
-```bash
-npm i -g vercel
-vercel
-```
-
-### Docker
-
-```bash
-docker build -t synop .
-docker run -p 3000:3000 synop
-```
-
----
-
-## ✦ Roadmap
-
-- [x] YouTube transcript extraction
-- [x] AI-powered structured summaries
-- [x] Dashboard with history
-- [x] Clerk authentication
-- [ ] Podcast support (Spotify, Apple)
-- [ ] Browser extension
-- [ ] Team workspaces
-- [ ] Public API
-
----
-
-## ✦ Contributing
-
-This is an open source project and we welcome contributions of all kinds.
-
-```bash
-git checkout -b feature/your-feature
-npm run dev
-# make changes
-npm run build
-git push origin feature/your-feature
-```
-
-Then open a pull request. All skill levels welcome.
-
----
-
-## ✦ License
-
-MIT © [sharadvc](https://github.com/sharadvc) — Free to use, modify, and distribute.
-
----
+## Screenshots
 
 <div align="center">
-  <p>
-    <a href="https://github.com/sharadvc/synop">GitHub</a>
-    ·
-    <a href="https://github.com/sharadvc/synop/issues">Issues</a>
-    ·
-    <a href="https://github.com/sharadvc/synop/discussions">Discussions</a>
-  </p>
-  <p>
-    <sub>Built with ❤️ for the open source community</sub>
-  </p>
+  <table>
+    <tr>
+      <td align="center"><strong>Landing Page</strong></td>
+      <td align="center"><strong>Dashboard</strong></td>
+    </tr>
+    <tr>
+      <td><img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/landing.png" alt="Landing Page" width="100%" /></td>
+      <td><img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/dashboard.png" alt="Dashboard" width="100%" /></td>
+    </tr>
+    <tr>
+      <td align="center"><strong>Dashboard (Full)</strong></td>
+      <td align="center"><strong>Settings</strong></td>
+    </tr>
+    <tr>
+      <td><img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/dashboard-full.png" alt="Dashboard Full" width="100%" /></td>
+      <td><img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/settings.png" alt="Settings" width="100%" /></td>
+    </tr>
+  </table>
 </div>
+
+---
+
+## Features
+
+- **100% Free & Open Source**: Host Synop locally. No subscriptions, no paywalls.
+- **Deep YouTube Summarization**: Extracts executive summaries, key insights, action items, quotes, timestamps, resources, bias analysis, verdict, and more.
+- **Multi-format Export**: Download summaries as Markdown or PDF. Export to Notion (with your API key).
+- **Content Repurposing**: Generate blog posts, Twitter threads, and LinkedIn posts from any video.
+- **Chat with Any Video**: Ask questions about video content with context-aware AI chat (per-video or global search).
+- **Folders & Organization**: Organize summaries into color-coded folders. Search, filter, and bulk-select for batch operations.
+- **TTS Audio**: Listen to executive summaries with text-to-speech.
+- **Video Clips**: AI-generated highlight reels with automated rendering (requires FFmpeg).
+- **Bring Your Own Keys**: Use Gemini (free tier), Groq, or OpenRouter — swap from the UI settings.
+- **Local Database**: Prisma + SQLite for zero-config persistence. All data stays on your machine.
+
+## Quick Start (Localhost)
+
+### Prerequisites
+- Node.js 18+
+- npm or pnpm
+- API keys for your preferred AI model
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/sharadvc/synop.git
+   cd synop
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Initialize the Database**
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
+
+4. **Environment Variables**
+   Copy `.env.example` to `.env` and add your API keys and master password:
+   ```bash
+   GEMINI_API_KEY="your_gemini_key"
+   GROQ_API_KEY="your_groq_key"
+   OPENROUTER_API_KEY="your_openrouter_key"
+   MASTER_PASSWORD="your-secure-password"
+   ```
+
+5. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+   Navigate to `http://localhost:3456` to start summarizing.
+
+### Optional: FFmpeg for Video Clips
+
+If you want to use the clips/rendering feature:
+```bash
+brew install ffmpeg
+```
+
+## Architecture & Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Styling**: Tailwind CSS v4 + Glassmorphism UI
+- **Database**: Prisma + SQLite
+- **AI Models**: Gemini 1.5 Flash (primary), Groq Llama 3 (fallback), OpenRouter (fallback)
+- **PDF Export**: html2pdf.js (rendered in isolated iframe)
+- **Video Rendering**: Local FFmpeg + yt-dlp (clips feature)
+
+## Contributing
+
+Contributions are welcome!
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request

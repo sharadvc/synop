@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { extractVideoId, getTranscript } from '@/lib/youtube';
 import { db } from '@/lib/db';
-import { summarizeWithProvider, PROVIDERS, PROVIDER_LABELS, type Provider } from '@/lib/ai';
-
 export const maxDuration = 120;
 
 const summarySchema = z.object({
@@ -13,32 +12,65 @@ const summarySchema = z.object({
   quotes: z.array(z.string()),
   timestamps: z.array(z.object({ time: z.string(), topic: z.string(), details: z.string() })),
   resources: z.array(z.string()),
+  biasAnalysis: z.array(z.string()).optional(),
+  frameworks: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
+  entities: z.array(z.object({ type: z.string(), name: z.string() })).optional(),
+  mindMap: z.string().optional(),
   verdict: z.string(),
 });
 
-const SUMMARY_PROMPT = `You are a world-class executive analyst and expert summarizer. Your task is to process this raw YouTube transcript and generate an immensely powerful, deeply insightful, and comprehensive summary. Do not give surface-level fluff. Dig deep into the core arguments, hidden nuances, and step-by-step logic.
+const MODELS = [
+  "google/gemini-2.0-flash-lite-preview-02-05:free",
+  "google/gemma-2-9b-it:free",
+  "meta-llama/llama-3.1-8b-instruct:free",
+  "microsoft/phi-3-mini-128k-instruct:free"
+];
 
-Rules:
-- Give EXTREME DETAIL. Make the summary robust, analytical, and highly structured.
-- Executive Summary: A multi-paragraph, incredibly dense breakdown of the entire video's thesis, context, and ultimate conclusion.
-- Key Insights: 5-8 highly analytical insights. Don't just state facts; explain *why* they matter and the underlying logic.
-- Action Items: 4-6 highly specific, actionable takeaways that a professional could implement immediately.
-- Quotes: 3-5 verbatim, powerful quotes that capture the essence of the arguments.
-- Timestamps: Provide an exhaustive list of logical chapters. For each chapter, provide the estimated MM:SS timestamp, a topic title, and a detailed summary (2-3 sentences) of what was discussed in that specific section.
-- Resources: Any books, tools, papers, companies, or concepts mentioned.
-- Verdict: A brutal, honest, 1-2 sentence assessment of who should watch this and the absolute core value provided.
+function buildSummaryPrompt(language: string = 'English', customPrompt?: string) {
+  const baseInstructions = `You are a council of specialized AI Data Miners working to generate an EXHAUSTIVE "Mega-Dossier" from a raw transcript. You are strictly forbidden from writing generic, high-level, or superficial summaries. You must extract every single specific statistic, historical anecdote, debate point, logical framework, and nuance mentioned in the text. Leave absolutely nothing behind.`;
+  const customInstructions = customPrompt ? `\n\nUSER'S CUSTOM INSTRUCTION:\n${customPrompt}\nYou MUST follow this custom instruction while maintaining the strict JSON schema below.` : '';
+  
+  return `${baseInstructions}${customInstructions}
 
-Return ONLY valid JSON matching this exact schema. Do not include markdown formatting or backticks.
-Schema:
+CRITICAL LANGUAGE RULE:
+- You MUST write ALL output text in ${language}. Every single field value in the JSON MUST be written in ${language}.
+- Even if the transcript is in a different language, translate and write all analysis in ${language}.
+- The only exception is direct quotes ("quotes" field) — keep them in their original language, but add a ${language} translation in parentheses if the original is not in ${language}.
+
+RULES:
+1. NO SURFACE LEVEL FLUFF. DO NOT summarize generally. You must dig into exact methodologies, underlying assumptions, logical fallacies, and deep logic. Mention the specific numbers, names, and examples the speaker uses.
+2. EXHAUSTIVE EXTRACTION. If the video is 2 hours long, your output should be incredibly dense and long. 
+3. YOU MUST RETURN ONLY VALID JSON MATCHING THE EXACT SCHEMA PROVIDED. NO MARKDOWN. NO CODE BLOCKS.
+4. ALL output MUST be in ${language}.
+
+THE PIPELINE:
+- [The Synthesizer] -> "executiveSummary": A massive, dense, multi-paragraph overview capturing the entire thesis, sub-theses, and exact context.
+- [The Structurer] -> "keyInsights": 10-15 highly analytical, dense insights. You MUST explain *why* they matter and include the specific evidence the speaker used.
+- [The Extractor] -> "actionItems": 5-10 specific, highly actionable takeaways for a professional to implement immediately.
+- [The Extractor] -> "quotes": 5-8 verbatim, powerful quotes capturing essence, especially controversial or highly profound statements.
+- [The Structurer] -> "timestamps": Exhaustive logical chapters (MM:SS, topic title, 3-5 sentence deep summary). You must break the video down extensively.
+- [The Extractor] -> "resources": Any books, tools, websites, scientific papers, or historical events mentioned.
+- [The Critique] -> "biasAnalysis": 3-5 points identifying any underlying biases, logical fallacies, or unproven assumptions the speaker relies on. Challenge the speaker.
+- [The Extractor] -> "frameworks": Extract ALL mental models, frameworks, or step-by-step systems discussed (provide "name" and "description").
+- [The Extractor] -> "entities": Notable people, companies, or scientific concepts (provide "type" e.g., "Person"/"Company", and "name").
+- [The Structurer] -> "mindMap": A valid Mermaid.js graph code (e.g. graph TD) mapping the core concepts of the video. Just the raw Mermaid code string without backticks.
+- [The Synthesizer] -> "verdict": A brutal, 1-2 sentence final assessment of the core value provided.
+
+JSON SCHEMA:
 {
-  "executiveSummary": "A dense, multi-paragraph overview...",
-  "keyInsights": ["Insight 1 with deep analysis...", "Insight 2..."],
-  "actionItems": ["Action 1...", "Action 2..."],
-  "quotes": ["Quote 1...", "Quote 2..."],
-  "timestamps": [{"time": "MM:SS", "topic": "Section Topic", "details": "Detailed breakdown of this section"}],
-  "resources": ["Resource 1..."],
-  "verdict": "Final assessment..."
+  "executiveSummary": "...",
+  "keyInsights": ["...", "..."],
+  "actionItems": ["...", "..."],
+  "quotes": ["...", "..."],
+  "timestamps": [{"time": "MM:SS", "topic": "...", "details": "..."}],
+  "resources": ["...", "..."],
+  "biasAnalysis": ["...", "..."],
+  "frameworks": [{"name": "...", "description": "..."}],
+  "entities": [{"type": "...", "name": "..."}],
+  "mindMap": "graph TD\\nA[Concept] --> B[Detail]",
+  "verdict": "..."
 }`;
+}
 
 function extractJson(raw: string): any {
   const trimmed = raw.trim();
@@ -49,21 +81,12 @@ function extractJson(raw: string): any {
 
   const start = trimmed.indexOf('{');
   const end = trimmed.lastIndexOf('}');
-  const core = (start !== -1 && end > start) ? trimmed.slice(start, end + 1) : trimmed;
-  try { return JSON.parse(core); } catch {}
+  if (start !== -1 && end > start) { try { return JSON.parse(trimmed.slice(start, end + 1)); } catch {} }
 
-  // Repair common model-output defects: trailing commas, unquoted keys, and
-  // literal line breaks / tabs inside string values (breaks strict JSON).
-  const repair = (s: string) =>
-    s
-      .replace(/[\r\n\t]+/g, ' ')
-      .replace(/,\s*}/g, '}')
-      .replace(/,\s*]/g, ']')
-      .replace(/([{,])\s*(\w+)\s*:/g, '$1"$2":');
-  try { return JSON.parse(repair(core)); } catch {}
-  try { return JSON.parse(repair(trimmed)); } catch {}
+  const fixed = trimmed.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']').replace(/([{,])\s*(\w+)\s*:/g, '$1"$2":');
+  try { return JSON.parse(fixed); } catch {}
 
-  throw new Error(`Failed to parse AI response. Raw start: ${trimmed.substring(0, 250)}`);
+  throw new Error(`Failed to parse AI response. Raw start: ${trimmed.substring(0, 150)}`);
 }
 
 async function getVideoMeta(videoId: string) {
@@ -83,54 +106,175 @@ async function getVideoMeta(videoId: string) {
   }
 }
 
-// Env keys are used only as a fallback when no key is supplied in the request (BYOK).
-const ENV_API_KEYS: Record<Provider, string | undefined> = {
-  openrouter: process.env.OPENROUTER_API_KEY,
-  groq: process.env.GROQ_API_KEY,
-  deepseek: process.env.DEEPSEEK_API_KEY,
-  openai: process.env.OPENAI_API_KEY,
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+type CustomKeys = {
+  gemini?: string | null;
+  groq?: string | null;
+  openrouter?: string | null;
 };
+
+async function callModelWithFallback(transcript: string, keys: CustomKeys, language: string = 'English', customPrompt?: string): Promise<any> {
+  const SUMMARY_PROMPT = buildSummaryPrompt(language, customPrompt);
+  let lastErr: Error | null = null;
+  
+  // TIER 1: Gemini 1.5 Flash (1 Million Context Window)
+  const geminiKey = keys.gemini || process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    try {
+      console.log("[AI Pipeline] Attempting Gemini 1.5 Pro (2M Context)...");
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `System Prompt: ${SUMMARY_PROMPT}\n\nUser Request: Parse the following transcript into the exact JSON format requested. Transcript:\n\n${transcript}` }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 8192
+          }
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        let content = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (match) {
+          content = match[1];
+        }
+        content = content.trim();
+        if (content) return JSON.parse(content);
+      } else {
+        const err = await res.text();
+        console.warn("[AI Pipeline] Gemini failed, falling back to Groq...", err.substring(0, 150));
+      }
+    } catch (err: any) {
+      console.warn("[AI Pipeline] Gemini error:", err.message);
+    }
+  }
+
+  // TIER 2: Groq Llama-3 (Fallback)
+  const groqKey = keys.groq || process.env.GROQ_API_KEY;
+  if (groqKey) {
+    const groqModels = [
+      { id: "llama-3.3-70b-versatile", chars: 14000 }, // ~3.5k tokens + 1k prompt + 1.5k output = 6k TPM (Free Tier limit)
+      { id: "llama-3.1-8b-instant", chars: 30000 },    // ~7.5k tokens + 1k prompt + 1.5k output = 10k (30k TPM limit)
+    ];
+
+    for (const groqModel of groqModels) {
+      try {
+        console.log(`[AI Pipeline] Attempting Groq ${groqModel.id}...`);
+
+        const maxChars = groqModel.chars;
+        const truncatedTranscript = transcript.length > maxChars 
+          ? transcript.slice(0, maxChars) + "\n\n[TRANSCRIPT TRUNCATED DUE TO GROQ RATE LIMITS]" 
+          : transcript;
+
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${groqKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: groqModel.id,
+            messages: [
+              { role: "system", content: SUMMARY_PROMPT },
+              { role: "user", content: `Parse the following transcript into the exact JSON format requested. Transcript:\n\n${truncatedTranscript}` },
+            ],
+            temperature: 0.2, 
+            response_format: { type: "json_object" },
+          }),
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          const content = json.choices?.[0]?.message?.content;
+          if (content) return JSON.parse(content);
+        } else {
+          const err = await res.text();
+          console.warn(`[AI Pipeline] Groq ${groqModel.id} failed:`, err.substring(0, 150));
+          if (res.status === 429) {
+             // Rate limit hit. Fallback to the smaller model immediately.
+             continue;
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[AI Pipeline] Groq ${groqModel.id} error:`, err.message);
+      }
+    }
+  }
+
+  // FALLBACK ENGINE: OpenRouter free models
+  for (const model of MODELS) {
+    try {
+      console.log(`[AI Pipeline] Attempting ${model}...`);
+      const openRouterKey = keys.openrouter || process.env.OPENAI_API_KEY;
+      if (!openRouterKey) throw new Error("No API keys available for fallback.");
+
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openRouterKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://youtube-summary-ai.vercel.app",
+          "X-Title": "YouTube Summary AI",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: SUMMARY_PROMPT },
+            { role: "user", content: `Transcript:\n\n${transcript.substring(0, 30000)}` },
+          ],
+          temperature: 0.2, 
+          response_format: { type: "json_object" },
+        }),
+      });
+
+      if (res.status === 429) {
+        await delay(1000);
+        continue;
+      }
+      if (!res.ok) continue;
+
+      const json = await res.json();
+      const content = json.choices?.[0]?.message?.content;
+      if (!content) continue;
+
+      return extractJson(content);
+    } catch (err: any) {
+      lastErr = err;
+      await delay(500);
+    }
+  }
+
+  throw lastErr || new Error("All summarization models failed. The transcript might be too complex or rate limits were hit.");
+}
 
 export async function POST(req: Request) {
   try {
-    // Clerk muted for local dev — use a fixed dev user.
-    const userId = 'dev-user';
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
+    const cookieStore = await cookies();
+    const auth = cookieStore.get('synop_auth');
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json();
-    const url = body?.url;
+    const { url, language = 'English', customPrompt } = await req.json();
     if (!url) return NextResponse.json({ error: 'YouTube URL is required' }, { status: 400 });
-
-    // BYOK: provider + key come from the client (Settings page). Env is the fallback.
-    const provider: Provider =
-      PROVIDERS.includes(body?.provider) ? body.provider : 'openrouter';
-    const apiKey = String(body?.apiKey ?? '').trim() || ENV_API_KEYS[provider] || '';
 
     const videoId = extractVideoId(url);
     if (!videoId) return NextResponse.json({ error: 'Invalid YouTube URL' }, { status: 400 });
 
-    // Check Credits
-    let user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      user = await db.user.create({ data: { id: userId, credits: 5 } });
-    }
-
-    if (user.credits <= 0) {
-      return NextResponse.json({ error: 'You are out of credits. Please upgrade to Pro.' }, { status: 403 });
-    }
-
-    // Check if summary already exists
+    // Check if summary already exists locally
     const existingSummary = await db.summary.findFirst({
-       where: { userId, videoId }
+       where: { videoId, language }
     });
 
     if (existingSummary) {
        return NextResponse.json({
          videoId,
-         provider,
          meta: { title: existingSummary.title, author_name: existingSummary.channel, thumbnail_url: "" },
+         notes: existingSummary.notes || null,
          summary: {
             executiveSummary: existingSummary.executiveSummary,
             keyInsights: JSON.parse(existingSummary.keyInsights),
@@ -138,6 +282,9 @@ export async function POST(req: Request) {
             quotes: JSON.parse(existingSummary.quotes),
             timestamps: JSON.parse(existingSummary.timestamps),
             resources: JSON.parse(existingSummary.resources),
+            biasAnalysis: existingSummary.biasAnalysis ? JSON.parse(existingSummary.biasAnalysis) : undefined,
+            frameworks: existingSummary.frameworks ? JSON.parse(existingSummary.frameworks) : undefined,
+            entities: existingSummary.entities ? JSON.parse(existingSummary.entities) : undefined,
             verdict: existingSummary.verdict,
          }
        });
@@ -152,57 +299,49 @@ export async function POST(req: Request) {
     let aiError: string | null = null;
 
     if (transcript) {
-      if (!apiKey) {
-        aiError = `No API key configured for ${PROVIDER_LABELS[provider]}. Add your key in Settings → Bring Your Own Key.`;
-        console.error(aiError);
-      } else {
-        try {
-          const { content, model } = await summarizeWithProvider({
-            provider,
-            apiKey,
-            system: SUMMARY_PROMPT,
-            transcript,
-          });
-          console.error(`AI summary via ${provider}/${model}`);
-          summary = summarySchema.parse(extractJson(content));
+      try {
+        const customKeys = {
+          gemini: req.headers.get('x-gemini-key'),
+          groq: req.headers.get('x-groq-key'),
+          openrouter: req.headers.get('x-openrouter-key'),
+        };
 
-          // Deduct credit and save to DB
-          await db.$transaction([
-            db.user.update({
-              where: { id: userId },
-              data: { credits: { decrement: 1 } }
-            }),
-            db.summary.create({
-              data: {
-                userId,
-                videoId,
-                title: meta?.title || "Unknown Title",
-                channel: meta?.author_name || "Unknown Channel",
-                duration: "TBD",
-                executiveSummary: summary.executiveSummary,
-                keyInsights: JSON.stringify(summary.keyInsights),
-                actionItems: JSON.stringify(summary.actionItems),
-                quotes: JSON.stringify(summary.quotes),
-                timestamps: JSON.stringify(summary.timestamps),
-                resources: JSON.stringify(summary.resources),
-                verdict: summary.verdict,
-              }
-            })
-          ]);
+        summary = await callModelWithFallback(transcript, customKeys, language, customPrompt);
+        summary = summarySchema.parse(summary);
 
-        } catch (err: any) {
-          aiError = err.message;
-          console.error("AI generation failed:", err.message);
-        }
+        // Save to DB
+        await db.summary.create({
+          data: {
+            videoId,
+            title: meta?.title || "Unknown Title",
+            channel: meta?.author_name || "Unknown Channel",
+            duration: "TBD",
+            executiveSummary: summary.executiveSummary,
+            keyInsights: JSON.stringify(summary.keyInsights),
+            actionItems: JSON.stringify(summary.actionItems),
+            quotes: JSON.stringify(summary.quotes),
+            timestamps: JSON.stringify(summary.timestamps || []),
+            resources: JSON.stringify(summary.resources || []),
+            biasAnalysis: JSON.stringify(summary.biasAnalysis || []),
+            frameworks: JSON.stringify(summary.frameworks || []),
+            entities: JSON.stringify(summary.entities || []),
+            mindMap: summary.mindMap || "",
+            verdict: summary.verdict || "No verdict provided.",
+          }
+        });
+
+      } catch (err: any) {
+        aiError = err.message;
+        console.error("AI generation failed:", err.message);
       }
     }
 
     return NextResponse.json({
       videoId,
-      provider,
       meta,
       transcript: transcript ? transcript.substring(0, 3000) : null,
       summary,
+      notes: null,
       aiError,
     });
 

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Synop — Install</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #0a0b0e;
+    color: #e2e8f0;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .dot-bg {
+    position: fixed; inset: 0;
+    background-image: radial-gradient(rgba(200,240,78,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 40px 24px; position: relative; z-index: 1; }
+  header { text-align: center; margin-bottom: 48px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px; padding: 8px 20px;
+    border-radius: 999px; font-size: 13px; font-weight: 600; letter-spacing: -0.3px;
+    background: rgba(200,240,78,0.08); border: 1px solid rgba(200,240,78,0.15);
+  }
+  .logo-icon {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: rgba(200,240,78,0.15); display: flex; align-items: center; justify-content: center;
+  }
+  .logo-icon svg { width: 14px; height: 14px; fill: #c8f04e; }
+  h1 { font-size: 36px; font-weight: 700; letter-spacing: -1px; margin-top: 16px; }
+  h1 span { background: linear-gradient(135deg, #c8f04e, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  p.sub { color: #94a3b8; font-size: 15px; margin-top: 8px; line-height: 1.5; }
+  .step { margin-bottom: 16px; }
+  .step-header {
+    display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+    border-radius: 14px; cursor: pointer; transition: all 0.2s;
+    border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);
+  }
+  .step-header:hover { background: rgba(255,255,255,0.04); }
+  .step-number {
+    width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+    background: rgba(200,240,78,0.1); color: #c8f04e;
+  }
+  .step-number.done { background: #c8f04e; color: #0a0b0e; }
+  .step-info { flex: 1; }
+  .step-title { font-size: 14px; font-weight: 600; }
+  .step-desc { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .step-chevron { color: rgba(255,255,255,0.2); font-size: 14px; transition: transform 0.2s; }
+  .step.open .step-chevron { transform: rotate(90deg); }
+  .step-body {
+    display: none; padding: 20px; border: 1px solid rgba(255,255,255,0.04);
+    border-top: 0; border-radius: 0 0 14px 14px; background: rgba(0,0,0,0.15);
+  }
+  .step.open .step-body { display: block; }
+  .step.open .step-header { border-radius: 14px 14px 0 0; }
+  .step-body p { font-size: 13px; color: #94a3b8; line-height: 1.6; margin-bottom: 12px; }
+  code {
+    display: block; padding: 14px 16px; border-radius: 10px; font-size: 13px; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: #0a0b0e; border: 1px solid rgba(255,255,255,0.06); color: #c8f04e; overflow-x: auto; margin-bottom: 12px; line-height: 1.5;
+  }
+  code .comment { color: #475569; }
+  .btn-copy {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+    border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+    background: rgba(200,240,78,0.1); color: #c8f04e; border: none;
+  }
+  .btn-copy:hover { background: rgba(200,240,78,0.2); }
+  .btn-copy.copied { background: #c8f04e; color: #0a0b0e; }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px;
+    border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    background: #c8f04e; color: #0a0b0e; border: none;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-secondary {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px;
+    border-radius: 999px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+    border: 1px solid rgba(255,255,255,0.08); color: #94a3b8; background: transparent;
+  }
+  .btn-secondary:hover { border-color: rgba(255,255,255,0.15); color: #e2e8f0; }
+  .actions { display: flex; gap: 10px; margin-top: 4px; }
+  .checkbox-wrap { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #94a3b8; margin-bottom: 12px; }
+  .checkbox-wrap input { accent-color: #c8f04e; width: 16px; height: 16px; cursor: pointer; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 500; background: rgba(200,240,78,0.08); color: #c8f04e;
+  }
+  .footer { text-align: center; margin-top: 48px; color: #475569; font-size: 12px; }
+  .progress-bar {
+    display: flex; justify-content: center; gap: 8px; margin-bottom: 40px;
+  }
+  .progress-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); transition: all 0.3s;
+  }
+  .progress-dot.done { background: #c8f04e; }
+  .progress-dot.active { background: rgba(200,240,78,0.5); box-shadow: 0 0 8px rgba(200,240,78,0.3); }
+  @media (max-width: 600px) {
+    .container { padding: 24px 16px; }
+    h1 { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="dot-bg"></div>
+<div class="container">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><polygon points="8,5 19,12 8,19"/></svg>
+      </div>
+      Synop
+    </div>
+    <h1>Install <span>Synop</span></h1>
+    <p class="sub">Set up your own AI video summarizer in under 2 minutes.<br/>Free. Open source. Privacy first.</p>
+  </header>
+
+  <div class="progress-bar" id="progress">
+    <div class="progress-dot active"></div>
+    <div class="progress-dot"></div>
+    <div class="progress-dot"></div>
+    <div class="progress-dot"></div>
+    <div class="progress-dot"></div>
+    <div class="progress-dot"></div>
+  </div>
+
+  <div id="steps">
+    <div class="step open" data-step="0">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-number">1</div>
+        <div class="step-info">
+          <div class="step-title">Prerequisites</div>
+          <div class="step-desc">Check you have Node.js and git installed</div>
+        </div>
+        <span class="step-chevron">→</span>
+      </div>
+      <div class="step-body">
+        <p>Synop requires <strong>Node.js 20+</strong> and <strong>git</strong>. Run these commands to verify:</p>
+        <code><span class="comment"># Check prerequisites</span>
+node --version
+npm --version
+git --version</code>
+        <div class="checkbox-wrap">
+          <input type="checkbox" id="prereq-done" onchange="checkStep(0)">
+          <label for="prereq-done">I have Node.js 20+ and git installed</label>
+        </div>
+        <p>Need to install? Get Node.js from <a href="https://nodejs.org" target="_blank" style="color:#c8f04e">nodejs.org</a> and git from <a href="https://git-scm.com" target="_blank" style="color:#c8f04e">git-scm.com</a>.</p>
+      </div>
+    </div>
+
+    <div class="step" data-step="1">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-number">2</div>
+        <div class="step-info">
+          <div class="step-title">Clone the Repository</div>
+          <div class="step-desc">Download Synop to your machine</div>
+        </div>
+        <span class="step-chevron">→</span>
+      </div>
+      <div class="step-body">
+        <p>Open a terminal and run:</p>
+        <code>git clone https://github.com/sharadvc/synop.git
+cd synop</code>
+        <div class="actions">
+          <button class="btn-copy" onclick="copyCmd(this, 'git clone https://github.com/sharadvc/synop.git && cd synop')">Copy command</button>
+        </div>
+        <div class="checkbox-wrap" style="margin-top:12px">
+          <input type="checkbox" id="clone-done" onchange="checkStep(1)">
+          <label for="clone-done">Repository cloned</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" data-step="2">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-number">3</div>
+        <div class="step-info">
+          <div class="step-title">Install Dependencies</div>
+          <div class="step-desc">Install npm packages</div>
+        </div>
+        <span class="step-chevron">→</span>
+      </div>
+      <div class="step-body">
+        <p>Install all required packages with npm:</p>
+        <code>npm install</code>
+        <div class="actions">
+          <button class="btn-copy" onclick="copyCmd(this, 'npm install')">Copy command</button>
+        </div>
+        <div class="checkbox-wrap" style="margin-top:12px">
+          <input type="checkbox" id="npm-done" onchange="checkStep(2)">
+          <label for="npm-done">Dependencies installed</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" data-step="3">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-number">4</div>
+        <div class="step-info">
+          <div class="step-title">Configure Environment</div>
+          <div class="step-desc">Set up API keys and database</div>
+        </div>
+        <span class="step-chevron">→</span>
+      </div>
+      <div class="step-body">
+        <p>Copy the example env file and add your API keys:</p>
+        <code><span class="comment"># Create env file</span>
+cp .env.example .env</code>
+        <p>Open <code>.env</code> and add your keys. You'll need at least one AI provider:</p>
+        <code><span class="comment"># Get free credits at https://openrouter.ai/keys</span>
+OPENROUTER_API_KEY=sk-or-your-key-here</code>
+        <p style="font-size:12px;color:#64748b">OpenRouter gives you free credits to start. Clerk keys are optional — the app works without auth.</p>
+        <div class="checkbox-wrap">
+          <input type="checkbox" id="env-done" onchange="checkStep(3)">
+          <label for="env-done">Environment configured</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" data-step="4">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-number">5</div>
+        <div class="step-info">
+          <div class="step-title">Initialize Database</div>
+          <div class="step-desc">Push the schema to SQLite</div>
+        </div>
+        <span class="step-chevron">→</span>
+      </div>
+      <div class="step-body">
+        <p>Synop uses SQLite — no server setup needed. Just push the schema:</p>
+        <code>npx prisma db push</code>
+        <div class="actions">
+          <button class="btn-copy" onclick="copyCmd(this, 'npx prisma db push')">Copy command</button>
+        </div>
+        <div class="checkbox-wrap" style="margin-top:12px">
+          <input type="checkbox" id="db-done" onchange="checkStep(4)">
+          <label for="db-done">Database initialized</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" data-step="5">
+      <div class="step-header" onclick="toggleStep(this)">
+        <div class="step-number">6</div>
+        <div class="step-info">
+          <div class="step-title">Run Synop</div>
+          <div class="step-desc">Start the development server</div>
+        </div>
+        <span class="step-chevron">→</span>
+      </div>
+      <div class="step-body">
+        <p>Start the dev server and open your browser:</p>
+        <code>npm run dev</code>
+        <div class="actions">
+          <button class="btn-copy" onclick="copyCmd(this, 'npm run dev')">Copy command</button>
+        </div>
+        <p style="margin-top:12px">Then open <a href="http://localhost:3000" style="color:#c8f04e">http://localhost:3000</a> in your browser.</p>
+        <p style="font-size:12px;color:#64748b;margin-top:8px">Paste any YouTube URL and get your first summary in seconds.</p>
+        <div class="checkbox-wrap" style="margin-top:12px">
+          <input type="checkbox" id="run-done" onchange="checkStep(5)">
+          <label for="run-done">Synop is running!</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:40px">
+    <a href="http://localhost:3000" target="_blank" class="btn-primary" id="launch-btn" style="pointer-events:none;opacity:0.5">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>
+      Launch Synop
+    </a>
+    <p style="font-size:12px;color:#475569;margin-top:10px">Complete all steps to unlock</p>
+  </div>
+
+  <div class="footer">
+    <p>Synop — MIT License · Open Source</p>
+  </div>
+</div>
+
+<script>
+function toggleStep(header) {
+  const step = header.parentElement;
+  step.classList.toggle('open');
+}
+
+function checkStep(idx) {
+  const steps = document.querySelectorAll('.step');
+  const dots = document.querySelectorAll('.progress-dot');
+  const step = steps[idx];
+  const checkbox = step.querySelector('input[type="checkbox"]');
+  
+  if (checkbox.checked) {
+    dots[idx].classList.remove('active');
+    dots[idx].classList.add('done');
+    const num = step.querySelector('.step-number');
+    num.classList.add('done');
+    num.textContent = '✓';
+    step.classList.remove('open');
+    
+    if (idx < steps.length - 1) {
+      dots[idx + 1].classList.add('active');
+      steps[idx + 1].classList.add('open');
+    }
+  } else {
+    dots[idx].classList.remove('done');
+    dots[idx].classList.add('active');
+    const num = step.querySelector('.step-number');
+    num.classList.remove('done');
+    num.textContent = idx + 1;
+  }
+
+  // Check if all done
+  const allChecked = Array.from(steps).every((s, i) => s.querySelector('input[type="checkbox"]').checked);
+  const btn = document.getElementById('launch-btn');
+  if (allChecked) {
+    btn.style.pointerEvents = 'auto';
+    btn.style.opacity = '1';
+  } else {
+    btn.style.pointerEvents = 'none';
+    btn.style.opacity = '0.5';
+  }
+}
+
+function copyCmd(btn, cmd) {
+  navigator.clipboard.writeText(cmd).then(() => {
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy command';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>

@@ -2,11 +2,10 @@
 
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
-import { ArrowRight, Play, Zap, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock } from "lucide-react";
+import { ArrowRight, Play, Zap, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Settings, MousePointer2, Loader2, Globe, Database, PenTool, Share2, Scissors, Key, Terminal, Code2, Shield } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
 // Hand-drawn SVG components
 const CloudLeft = () => (
   <svg className="absolute top-[20%] left-[8%] w-32 h-20 text-foreground/80 hidden lg:block" viewBox="0 0 100 60" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -42,20 +41,101 @@ const Underline = () => (
   </svg>
 );
 
-export default function Home() {
-  const router = useRouter();
-  // Clerk muted for local dev — always show the landing page.
-  const isSignedIn = false;
-  const isLoaded = true;
+const GithubIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+  </svg>
+);
+
+const TypewriterLine = ({ text, onComplete }: { text: string, onComplete: () => void }) => {
+  const [displayedText, setDisplayedText] = useState("");
 
   useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      router.push('/dashboard');
+    let i = 0;
+    const interval = setInterval(() => {
+      setDisplayedText(text.substring(0, i + 1));
+      i++;
+      if (i >= text.length) {
+        clearInterval(interval);
+        setTimeout(onComplete, 400);
+      }
+    }, 40);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
+
+  return <span>{displayedText}</span>;
+}
+
+const LiveTerminal = () => {
+  const [step, setStep] = useState(0);
+
+  const commands = [
+    "git clone https://github.com/sharadvc/synop.git",
+    "cd synop",
+    "npm install",
+    "npx prisma db push",
+    "npm run dev"
+  ];
+
+  useEffect(() => {
+    if (step === commands.length) {
+      const t = setTimeout(() => setStep(0), 5000);
+      return () => clearTimeout(t);
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [step]);
 
-  if (isLoaded && isSignedIn) return null;
+  return (
+    <div className="space-y-4 text-gray-300 min-h-[220px] font-mono">
+       {commands.map((cmd, i) => (
+         step >= i && (
+           <div key={i} className="flex items-center gap-4">
+             <span className="text-green-400 shrink-0">~</span> 
+             <span className="text-gray-100">
+               {step === i ? (
+                 <TypewriterLine text={cmd} onComplete={() => setStep(i + 1)} />
+               ) : (
+                 cmd
+               )}
+             </span>
+           </div>
+         )
+       ))}
+       {step === commands.length && (
+         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 pt-4 text-primary font-bold animate-pulse">
+           Ready on localhost:3000 🚀
+         </motion.div>
+       )}
+    </div>
+  );
+};
 
+export default function Home() {
+  const router = useRouter();
+  const [mockActiveTab, setMockActiveTab] = useState("Dashboard");
+  const [demoPhase, setDemoPhase] = useState(0);
+
+  useEffect(() => {
+    if (mockActiveTab !== "Dashboard") return;
+    
+    // Animation sequence
+    let timeouts: NodeJS.Timeout[] = [];
+    
+    const runSequence = () => {
+      setDemoPhase(0);
+      timeouts.push(setTimeout(() => setDemoPhase(1), 1000)); // pointer moves to input
+      timeouts.push(setTimeout(() => setDemoPhase(2), 2000)); // paste link
+      timeouts.push(setTimeout(() => setDemoPhase(3), 3000)); // pointer moves to button
+      timeouts.push(setTimeout(() => setDemoPhase(4), 4000)); // click button
+      timeouts.push(setTimeout(() => setDemoPhase(5), 4500)); // loading
+      timeouts.push(setTimeout(() => setDemoPhase(6), 6000)); // show summary
+      timeouts.push(setTimeout(() => runSequence(), 12000)); // loop after 6s of viewing
+    };
+
+    runSequence();
+
+    return () => timeouts.forEach(clearTimeout);
+  }, [mockActiveTab]);
   return (
     <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden relative">
       <Navbar />
@@ -68,19 +148,6 @@ export default function Home() {
       
       <main className="pt-32 pb-20 px-6 flex flex-col items-center">
         
-        {/* Promo Pill */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
-          <div className="flex items-center gap-3 bg-card border border-border shadow-sm rounded-full px-1.5 py-1.5 pr-4">
-            <div className="w-6 h-6 flex items-center justify-center text-primary">
-              <Zap className="w-4 h-4 fill-primary/20" />
-            </div>
-            <span className="text-sm font-semibold tracking-tight text-foreground/90">🚀 Introducing Gist 2.0: The Ultimate Video AI</span>
-            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-white ml-2 cursor-pointer hover:bg-blue-700 transition-colors">
-              <ArrowRight className="w-3 h-3" />
-            </div>
-          </div>
-        </motion.div>
-
         {/* Headline */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-center max-w-3xl mb-8">
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.1] text-[#0f172a] dark:text-white">
@@ -90,17 +157,17 @@ export default function Home() {
 
         {/* Subheadline */}
         <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-[17px] text-foreground/70 text-center max-w-xl mb-12 font-medium leading-relaxed">
-          We're excited to offer you an exclusive promotion to save 20% off our Starter or Advanced plans.*
+          The 100% free, open-source tool to extract signal from noise and reclaim your time.
         </motion.p>
 
         {/* Buttons */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center gap-4 mb-24">
-          <button onClick={() => router.push('/dashboard')} className="h-12 px-8 rounded-full bg-primary hover:bg-blue-700 text-white font-bold text-[15px] shadow-[0_8px_20px_rgba(37,99,235,0.25)] transition-all">
-            Get Started
-          </button>
-          <button onClick={() => router.push('/pricing')} className="h-12 px-8 rounded-full bg-card border border-border hover:bg-accent text-foreground font-bold text-[15px] shadow-sm flex items-center gap-2 transition-all">
-            Try For Free <ArrowRight className="w-4 h-4 text-foreground/50" />
-          </button>
+          <a href="https://github.com/sharadvc/synop" target="_blank" rel="noopener noreferrer" className="h-12 px-8 rounded-full bg-primary hover:bg-primary/90 text-white font-bold text-[15px] shadow-[0_8px_20px_rgba(37,99,235,0.25)] transition-all flex items-center gap-2">
+            Clone Repository <Terminal className="w-4 h-4" />
+          </a>
+          <a href="https://github.com/sharadvc/synop" target="_blank" rel="noopener noreferrer" className="h-12 px-8 rounded-full bg-foreground text-background font-bold text-[15px] shadow-lg transition-all hover:-translate-y-0.5 flex items-center gap-2">
+            <GithubIcon className="w-4 h-4" /> Star on GitHub
+          </a>
         </motion.div>
 
         {/* Safari Browser Mockup */}
@@ -120,7 +187,7 @@ export default function Home() {
              
              {/* URL Bar */}
              <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center w-80 h-7 bg-accent rounded-md text-[11px] font-medium text-foreground/60 gap-2">
-                <Search className="w-3 h-3" /> app.gist.io
+                <Search className="w-3 h-3" /> app.synop.ai
              </div>
 
              <div className="flex items-center gap-4 text-foreground/40">
@@ -132,117 +199,305 @@ export default function Home() {
              </div>
           </div>
 
-          {/* Browser Content Area */}
-          <div className="flex h-[600px] bg-background">
+          {/* Browser Content Area (True Dashboard Replica) */}
+          <div className="flex h-[600px] bg-background text-left">
              {/* Sidebar */}
-             <div className="w-64 border-r border-border bg-card/50 flex flex-col p-4">
-                <div className="font-extrabold text-xl tracking-tight mb-8 pl-2">Synop</div>
-                
+             <div className="w-64 border-r border-border glass flex flex-col p-4 shrink-0 hidden md:flex z-10">
+                 <div className="flex items-center gap-2 mb-8 pl-2">
+                    <img src="/logo.svg" alt="Synop Logo" className="w-8 h-8" />
+                    <span className="font-extrabold text-2xl tracking-tight">Synop</span>
+                 </div>
+                 
                 <div className="space-y-1 mb-8">
-                   <div className="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-foreground/60 hover:bg-accent rounded-lg cursor-pointer">
-                      <LayoutDashboard className="w-4 h-4" /> Dashboard
+                   {[
+                      { name: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+                      { name: "Summaries", icon: <Folder className="w-4 h-4" /> },
+                      { name: "Chats", icon: <MessageSquare className="w-4 h-4" /> },
+                      { name: "Documents", icon: <FileText className="w-4 h-4" /> },
+                      { name: "Settings", icon: <Settings className="w-4 h-4" /> },
+                   ].map(tab => (
+                     <div 
+                        key={tab.name}
+                        onClick={() => setMockActiveTab(tab.name)}
+                        className={`flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-lg shadow-sm cursor-pointer transition-colors ${
+                           mockActiveTab === tab.name ? 'text-white bg-primary' : 'text-foreground/60 hover:text-foreground hover:bg-accent'
+                        }`}
+                     >
+                        {tab.icon} {tab.name}
+                     </div>
+                   ))}
+                </div>
+                
+                <div className="mb-8 flex-1 overflow-y-auto">
+                   <div className="flex items-center justify-between px-3 mb-4">
+                      <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">Folders</span>
                    </div>
-                   <div className="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-foreground/60 hover:bg-accent rounded-lg cursor-pointer">
-                      <Folder className="w-4 h-4" /> Summaries
-                   </div>
-                   <div className="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-white bg-primary rounded-lg shadow-sm cursor-pointer">
-                      <FileText className="w-4 h-4" /> My History
-                   </div>
-                   <div className="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-foreground/60 hover:bg-accent rounded-lg cursor-pointer">
-                      <MessageSquare className="w-4 h-4" /> Chats
-                   </div>
-                   <div className="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-foreground/60 hover:bg-accent rounded-lg cursor-pointer">
-                      <FileText className="w-4 h-4" /> Documents
-                   </div>
-                   <div className="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-foreground/60 hover:bg-accent rounded-lg cursor-pointer">
-                      <Receipt className="w-4 h-4" /> Receipts
+                   <div className="space-y-1">
+                      <div className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg bg-accent text-foreground cursor-pointer hover:bg-accent/80 transition-colors">
+                        <LayoutDashboard className="w-4 h-4" />
+                        <span>All Summaries</span>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg text-foreground/70 cursor-pointer hover:bg-accent/50 transition-colors">
+                        <div className="flex items-center gap-3 truncate">
+                          <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                          <span className="truncate">Tech Podcasts</span>
+                        </div>
+                      </div>
                    </div>
                 </div>
-
-                <div className="mt-auto">
-                   <div className="flex items-center justify-between px-3 mb-4">
-                      <span className="text-xs font-bold text-foreground/50">Projects</span>
-                      <Plus className="w-3 h-3 text-foreground/50" />
-                   </div>
-                   <div className="space-y-3 px-3">
-                      <div className="flex items-center gap-3 text-sm font-medium text-foreground/70"><div className="w-2 h-2 rounded bg-purple-400" /> Podcast Summaries</div>
-                      <div className="flex items-center gap-3 text-sm font-medium text-foreground/70"><div className="w-2 h-2 rounded bg-green-400" /> Tech Lectures</div>
+                
+                <div className="mt-auto pt-6 border-t border-border/50">
+                    <div className="flex items-center gap-3 px-3">
+                      <div className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center font-bold text-xs">Me</div>
+                      <div className="flex flex-col">
+                         <span className="text-sm font-bold text-foreground">Local User</span>
+                      </div>
                    </div>
                 </div>
              </div>
 
              {/* Main Dashboard Panel */}
-             <div className="flex-1 bg-background p-8 overflow-y-auto">
-                <div className="flex items-center justify-between mb-2">
-                   <div className="text-xs font-semibold text-foreground/50">Thursday, 20th February</div>
-                   <div className="flex items-center gap-2">
-                      <button className="h-8 px-4 border border-border rounded-md text-xs font-semibold flex items-center gap-2 hover:bg-accent text-foreground/80">
-                         <Search className="w-3 h-3" /> Share
-                      </button>
-                      <button className="h-8 px-4 border border-border rounded-md text-xs font-semibold flex items-center gap-2 hover:bg-accent text-foreground/80">
-                         <Plus className="w-3 h-3" /> Add Video
-                      </button>
-                   </div>
-                </div>
+             <div className="flex-1 bg-background/50 p-6 md:p-12 overflow-y-auto relative overflow-hidden">
                 
-                <h2 className="text-3xl font-bold text-foreground mb-8">Good Evening! John,</h2>
 
-                {/* Metric Pills */}
-                <div className="flex items-center gap-3 mb-10">
-                   <div className="px-4 py-2 bg-accent/50 border border-border rounded-full flex items-center gap-2 text-sm font-bold text-foreground/80">
-                      <Clock className="w-4 h-4 text-foreground/60" /> 12hrs <span className="text-foreground/50 font-medium">Time Saved</span>
-                   </div>
-                   <div className="px-4 py-2 bg-accent/50 border border-border rounded-full flex items-center gap-2 text-sm font-bold text-foreground/80">
-                      <CheckCircle2 className="w-4 h-4 text-foreground/60" /> 24 <span className="text-foreground/50 font-medium">Videos Analyzed</span>
-                   </div>
-                   <div className="px-4 py-2 bg-accent/50 border border-border rounded-full flex items-center gap-2 text-sm font-bold text-foreground/80">
-                      <Users className="w-4 h-4 text-foreground/60" /> 7 <span className="text-foreground/50 font-medium">In-progress</span>
-                   </div>
-                </div>
 
-                {/* Table Area */}
-                <div className="border border-border rounded-xl bg-card overflow-hidden">
-                   <div className="flex items-center justify-between p-4 border-b border-border bg-accent/30">
-                      <div className="flex items-center gap-2 text-sm font-bold">
-                         <LayoutDashboard className="w-4 h-4" /> My Videos
-                         <span className="text-xs font-medium text-foreground/50 ml-2 bg-background border border-border px-2 py-1 rounded">This Week ▼</span>
-                      </div>
-                      <span className="text-xs font-bold text-foreground/50 cursor-pointer">See All</span>
-                   </div>
+                {!(mockActiveTab === "Dashboard" && demoPhase >= 5) && (
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
+                   <div className="hidden md:block text-[11px] font-bold text-foreground/40 uppercase tracking-[0.2em]">Thursday, 20th February</div>
                    
-                   {/* Table Header */}
-                   <div className="grid grid-cols-12 gap-4 p-4 border-b border-border text-xs font-bold text-foreground/50 bg-background">
-                      <div className="col-span-6 flex items-center gap-2"><FileText className="w-3 h-3" /> Video Title</div>
-                      <div className="col-span-4 flex items-center gap-2"><Users className="w-3 h-3" /> Channel</div>
-                      <div className="col-span-2 flex items-center gap-2"><Zap className="w-3 h-3" /> Status</div>
-                   </div>
-
-                   {/* Table Rows */}
-                   {[
-                      { title: "Lex Fridman: AI and the Future of Humanity", channel: "Lex Fridman", status: "In Progress", statusColor: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300", id: 1 },
-                      { title: "YCombinator: How to get your first 10 customers", channel: "YCombinator", status: "Pending", statusColor: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300", id: 2 },
-                      { title: "Stanford CS229: Machine Learning Lecture 1", channel: "Stanford", status: "Completed", statusColor: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300", id: 3 }
-                   ].map((row) => (
-                      <div key={row.id} className="grid grid-cols-12 gap-4 p-4 border-b border-border last:border-0 items-center text-sm font-medium hover:bg-accent/30 transition-colors">
-                         <div className="col-span-6 flex items-center gap-3">
-                            <div className="w-6 h-6 rounded bg-accent flex items-center justify-center text-foreground/50"><Play className="w-3 h-3" /></div>
-                            <span className="truncate">{row.title}</span>
-                         </div>
-                         <div className="col-span-4 flex items-center gap-2 text-foreground/70">
-                            <div className="w-5 h-5 rounded-full bg-accent" />
-                            <span className="truncate">{row.channel}</span>
-                         </div>
-                         <div className="col-span-2 flex justify-start">
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase ${row.statusColor}`}>
-                               {row.status}
-                            </span>
-                         </div>
-                      </div>
-                   ))}
+                   <div className="flex items-center gap-3 w-full md:w-auto relative">
+                      {mockActiveTab === "Dashboard" && (
+                         <motion.div 
+                           className="absolute z-50 text-foreground pointer-events-none -translate-x-1/2 -translate-y-1/2"
+                           initial={{ top: "400%", left: "40%", opacity: 0 }}
+                           animate={
+                             demoPhase === 0 ? { top: "400%", left: "40%", opacity: 0 } :
+                             demoPhase === 1 || demoPhase === 2 ? { top: "60%", left: "40%", opacity: 1 } :
+                             demoPhase === 3 ? { top: "60%", left: "88%", opacity: 1 } :
+                             demoPhase === 4 ? { top: "60%", left: "88%", scale: 0.9, opacity: 1 } :
+                             { opacity: 0 }
+                           }
+                           transition={{ type: "spring", stiffness: 100, damping: 20 }}
+                         >
+                           <MousePointer2 className="w-8 h-8 drop-shadow-xl fill-foreground stroke-background stroke-2" />
+                         </motion.div>
+                      )}
+                       <div className={`flex-1 md:w-96 h-12 border border-border/60 rounded-2xl glass flex items-center px-4 shadow-sm transition-colors cursor-text ${demoPhase >= 1 && demoPhase < 5 ? 'border-primary/50 ring-4 ring-primary/10' : ''}`}>
+                          <Play className="w-4 h-4 text-foreground/30 mr-3 shrink-0" strokeWidth={1.5} />
+                          <div className={`text-[14px] font-medium w-full ${demoPhase >= 2 ? 'text-foreground' : 'text-foreground/30'}`}>
+                             {demoPhase >= 2 ? 'https://youtube.com/watch?v=dQw4w9WgXcQ' : 'Paste YouTube Link...'}
+                          </div>
+                       </div>
+                       <button className={`h-12 px-6 bg-foreground text-background rounded-2xl text-[14px] font-bold shadow-xl shadow-foreground/10 flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${demoPhase === 4 ? 'scale-95 bg-primary text-white' : 'hover:-translate-y-0.5'}`}>
+                          {demoPhase >= 5 ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Summarize'} 
+                          {demoPhase < 5 && <ArrowRight className="w-4 h-4" strokeWidth={2} />}
+                       </button>
+                    </div>
                 </div>
+                )}
+
+                {mockActiveTab === "Dashboard" && demoPhase < 5 && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <h2 className="text-4xl md:text-5xl font-serif text-foreground mb-12 tracking-tight">Good Evening!</h2>
+
+                    <div className="flex flex-wrap items-center gap-4 mb-12">
+                       <div className="px-6 py-3 glass border border-border/50 rounded-2xl flex items-center gap-3 text-[13px] font-bold text-foreground shadow-sm hover:-translate-y-1 hover:shadow-md transition-all cursor-default">
+                          <Clock className="w-4 h-4 text-foreground/40" strokeWidth={1.5} /> 12hrs <span className="text-foreground/40 font-medium">Time Saved</span>
+                       </div>
+                       <div className="px-6 py-3 glass border border-border/50 rounded-2xl flex items-center gap-3 text-[13px] font-bold text-foreground shadow-sm hover:-translate-y-1 hover:shadow-md transition-all cursor-default">
+                          <CheckCircle2 className="w-4 h-4 text-foreground/40" strokeWidth={1.5} /> 24 <span className="text-foreground/40 font-medium">Videos Analyzed</span>
+                       </div>
+                    </div>
+
+                    <div className="border border-border/50 rounded-3xl glass overflow-hidden shadow-xl shadow-foreground/5 group hover:border-border transition-colors">
+                       <div className="flex items-center justify-between p-6 border-b border-border/50 bg-foreground/[0.02]">
+                          <div className="flex items-center gap-2 text-[14px] font-bold">
+                             <LayoutDashboard className="w-4 h-4 text-foreground/40" strokeWidth={1.5} /> Recent Videos
+                          </div>
+                       </div>
+                       
+                       <div className="grid grid-cols-12 gap-4 p-4 border-b border-border text-xs font-bold text-foreground/50 bg-background uppercase tracking-wider">
+                          <div className="col-span-7 flex items-center gap-2"><FileText className="w-3 h-3" /> Video Title</div>
+                          <div className="col-span-5 flex items-center gap-2"><Users className="w-3 h-3" /> Channel</div>
+                       </div>
+
+                       {[
+                          { title: "Lex Fridman: AI and the Future of Humanity", channel: "Lex Fridman", id: 1 },
+                          { title: "YCombinator: How to get your first 10 customers", channel: "YCombinator", id: 2 },
+                          { title: "Stanford CS229: Machine Learning Lecture 1", channel: "Stanford", id: 3 }
+                       ].map((row) => (
+                          <div key={row.id} className="grid grid-cols-12 gap-4 p-5 border-b border-border last:border-0 items-center text-sm font-medium hover:bg-accent/50 transition-colors cursor-pointer">
+                             <div className="col-span-7 flex items-center gap-4">
+                                <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-foreground/50 shrink-0">
+                                   <Play className="w-3 h-3" />
+                                </div>
+                                <span className="truncate">{row.title}</span>
+                             </div>
+                             <div className="col-span-5 flex items-center gap-2 text-foreground/70">
+                                <span className="truncate">{row.channel}</span>
+                             </div>
+                          </div>
+                       ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {mockActiveTab === "Dashboard" && demoPhase === 5 && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="space-y-10 animate-pulse mt-4 max-w-4xl mx-auto"
+                  >
+                     {/* Skeleton Header */}
+                     <div className="flex items-center gap-4">
+                        <div className="w-40 h-10 bg-accent rounded-lg" />
+                        <div className="flex items-center gap-2 ml-auto">
+                           <div className="w-24 h-10 bg-accent rounded-lg" />
+                           <div className="w-24 h-10 bg-accent rounded-lg" />
+                        </div>
+                     </div>
+
+                     {/* Skeleton Video Meta */}
+                     <div className="flex flex-col md:flex-row gap-8 bg-card border border-border p-6 rounded-2xl shadow-sm">
+                        <div className="shrink-0 w-full md:w-72 h-[180px] bg-accent/50 rounded-xl" />
+                        <div className="flex flex-col justify-center gap-5 w-full">
+                           <div className="w-32 h-6 bg-accent rounded-full" />
+                           <div className="w-3/4 h-10 bg-accent rounded-lg" />
+                           <div className="w-1/2 h-8 bg-accent rounded-lg" />
+                        </div>
+                     </div>
+
+                     {/* Loader Indicator */}
+                     <div className="flex flex-col items-center justify-center py-16 gap-6 bg-card border border-border rounded-2xl shadow-sm relative overflow-hidden">
+                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent bg-[length:200%_100%] animate-[shimmer_2s_infinite]" />
+                       <div className="relative">
+                         <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                         <div className="absolute inset-0 w-10 h-10 rounded-full blur-xl bg-primary/20" />
+                       </div>
+                       <div className="text-center relative z-10">
+                         <p className="text-lg font-bold text-foreground">Analyzing Video Deeply...</p>
+                         <p className="text-sm font-medium text-foreground/50 mt-1 max-w-sm mx-auto">Extracting transcript and running extreme analytical summarization.</p>
+                       </div>
+                     </div>
+
+                     {/* Skeleton Exec Summary */}
+                     <div className="h-64 bg-accent/50 rounded-2xl border border-border" />
+                  </motion.div>
+                )}
+
+                {mockActiveTab === "Dashboard" && demoPhase >= 6 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-6"
+                  >
+                     <div className="flex items-center gap-4 mb-8">
+                       <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                         <Play className="w-8 h-8 text-primary" />
+                       </div>
+                       <div>
+                         <h2 className="text-2xl font-bold font-serif text-foreground">Rick Astley - Never Gonna Give You Up (Official Music Video)</h2>
+                         <p className="text-sm text-foreground/50 mt-1">Rick Astley • 1.5B views</p>
+                       </div>
+                     </div>
+                     
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                       <div className="md:col-span-2 space-y-6">
+                         <div className="p-6 glass border border-border/50 rounded-3xl shadow-sm">
+                           <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Zap className="w-5 h-5 text-yellow-500" /> Executive Summary</h3>
+                           <p className="text-sm text-foreground/70 leading-relaxed">
+                             This is the official music video for Rick Astley's hit 1987 song "Never Gonna Give You Up". 
+                             The video features Astley performing the song in various settings, including an empty warehouse, 
+                             while dancers perform energetic routines. It has since become a massive internet meme known as "Rickrolling".
+                           </p>
+                         </div>
+                         <div className="p-6 glass border border-border/50 rounded-3xl shadow-sm">
+                           <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><FileText className="w-5 h-5 text-blue-500" /> Key Insights</h3>
+                           <ul className="space-y-3 text-sm text-foreground/70 list-disc pl-5">
+                             <li>The song was a global number-one hit, topping charts in 25 countries.</li>
+                             <li>The music video sparked the "Rickroll" internet meme in the late 2000s.</li>
+                             <li>Rick Astley's distinctive baritone voice contrasts with his youthful appearance in the video.</li>
+                           </ul>
+                         </div>
+                       </div>
+                       <div className="space-y-6">
+                         <div className="p-6 glass border border-border/50 rounded-3xl shadow-sm">
+                           <h3 className="text-sm font-bold mb-4 uppercase tracking-wider text-foreground/50">Action Items</h3>
+                           <ul className="space-y-3 text-sm text-foreground/70">
+                             <li className="flex items-start gap-2"><div className="w-4 h-4 rounded border border-border mt-0.5 shrink-0" /> Never give you up</li>
+                             <li className="flex items-start gap-2"><div className="w-4 h-4 rounded border border-border mt-0.5 shrink-0" /> Never let you down</li>
+                             <li className="flex items-start gap-2"><div className="w-4 h-4 rounded border border-border mt-0.5 shrink-0" /> Never run around and desert you</li>
+                           </ul>
+                         </div>
+                       </div>
+                     </div>
+                  </motion.div>
+                )}
+
+                {mockActiveTab === "Summaries" && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <h2 className="text-3xl font-serif text-foreground mb-8">All Summaries</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="p-4 rounded-xl border border-border/50 glass hover:border-primary/50 hover:-translate-y-1 hover:shadow-lg transition-all cursor-pointer">
+                          <div className="flex items-center gap-3 mb-2">
+                             <div className="w-8 h-8 rounded bg-primary/10 text-primary flex items-center justify-center"><Folder className="w-4 h-4" /></div>
+                             <div className="font-bold text-sm">Tech Lectures {i}</div>
+                          </div>
+                          <div className="text-xs text-foreground/50">4 videos • Last updated today</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {mockActiveTab === "Chats" && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col items-center justify-center h-64 text-center">
+                    <MessageSquare className="w-12 h-12 text-foreground/20 mb-4" />
+                    <h3 className="text-lg font-bold">Chat with your Videos</h3>
+                    <p className="text-sm text-foreground/50 max-w-sm mt-2">Ask questions, extract action items, and brainstorm ideas based on your video library.</p>
+                  </div>
+                )}
+
+                {mockActiveTab === "Documents" && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <h2 className="text-3xl font-serif text-foreground mb-8">Your Documents</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="p-6 rounded-2xl border border-border/50 glass flex flex-col items-center justify-center text-center hover:-translate-y-2 hover:shadow-xl hover:border-primary/50 transition-all cursor-pointer group">
+                           <FileText className="w-8 h-8 text-foreground/40 group-hover:text-primary transition-colors mb-4" />
+                           <div className="font-bold text-sm">Summary_0{i}.md</div>
+                           <div className="text-xs text-foreground/50 mt-1">PDF & Markdown</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {mockActiveTab === "Settings" && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-md">
+                    <h2 className="text-3xl font-serif text-foreground mb-8">Settings</h2>
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-xl border border-border/50 glass hover:border-border transition-colors cursor-pointer">
+                         <div className="font-bold text-sm">AI Provider Keys</div>
+                         <div className="text-xs text-foreground/50 mt-1">Configure Gemini, Groq, OpenRouter</div>
+                      </div>
+                      <div className="p-4 rounded-xl border border-border/50 glass hover:border-border transition-colors cursor-pointer">
+                         <div className="font-bold text-sm">Notion Integration</div>
+                         <div className="text-xs text-foreground/50 mt-1">Sync summaries automatically</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
              </div>
           </div>
-        </motion.div>
+
+</motion.div>
 
         {/* ───── MARQUEE ───── */}
         <div className="w-[110%] mt-24 overflow-hidden bg-primary text-white py-4 relative transform -rotate-2 shadow-sm -mx-6">
@@ -273,133 +528,93 @@ export default function Home() {
       </main>
 
       {/* ───── SERVICES ───── */}
-      <section id="services" className="py-24 px-6 bg-accent/30 relative">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-extrabold tracking-tight mb-4">Powerful Features for Productivity</h2>
-            <p className="text-foreground/70 font-medium max-w-2xl mx-auto">Everything you need to extract signal from noise and reclaim your time.</p>
+      <section id="services" className="py-32 px-6 bg-accent/30 relative border-t border-b border-border/50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary font-bold text-sm mb-6">
+                <Zap className="w-4 h-4" /> Everything You Need
+             </div>
+            <h2 className="text-5xl font-extrabold tracking-tight mb-6 font-serif">A powerhouse for content digestion.</h2>
+            <p className="text-foreground/70 font-medium max-w-2xl mx-auto text-lg">Stop skimming through bloated videos. Synop extracts exactly what you need in seconds, with zero compromises.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[ 
-              { icon: Clock, title: "Save Hundreds of Hours", desc: "Skip the fluff. Get to the core message of any 2-hour lecture in 30 seconds." },
-              { icon: MessageSquare, title: "Chat with Video", desc: "Ask specific questions to the AI about the video content and get precise answers with timestamps." },
-              { icon: FileText, title: "Export Anywhere", desc: "Export your beautifully formatted notes to Notion, Markdown, PDF, or just copy to clipboard." }
+              { icon: PenTool, title: "Multi-Page Notes", desc: "Get highly structured, exhaustive handwritten notes covering every single minute, quote, and action item of the video." },
+              { icon: MessageSquare, title: "Chat with the AI", desc: "Have a conversation directly with the video's transcript. Ask specific questions and get precise, timestamped answers instantly." },
+              { icon: Share2, title: "Marketing Assets", desc: "Instantly repurpose any video into ready-to-publish SEO blog posts, Twitter threads, and LinkedIn posts with one click." },
+              { icon: Scissors, title: "Viral Clips Generator", desc: "Automatically identify the most engaging and controversial moments with exact timestamps for easy Shorts & Reels creation." },
+              { icon: Globe, title: "Global Languages", desc: "Summarize and chat with videos in over 12 languages. Break down language barriers and consume global content effortlessly." },
+              { icon: Database, title: "Local-First Privacy", desc: "Your library, your rules. All folders, histories, and summaries are stored securely in your own local SQLite database." }
             ].map((feature, i) => (
-              <div key={i} className="bg-card border border-border p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-6">
-                  <feature.icon className="w-6 h-6" />
+              <div key={i} className="bg-card border border-border p-10 rounded-[2rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+                <div className="w-14 h-14 bg-foreground/5 rounded-2xl flex items-center justify-center text-foreground mb-8 group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
+                  <feature.icon className="w-7 h-7" strokeWidth={1.5} />
                 </div>
-                <h3 className="text-xl font-bold tracking-tight mb-3">{feature.title}</h3>
-                <p className="text-foreground/70 text-sm font-medium leading-relaxed">{feature.desc}</p>
+                <h3 className="text-2xl font-bold tracking-tight mb-4 font-serif">{feature.title}</h3>
+                <p className="text-foreground/60 text-[15px] font-medium leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ───── USE CASES ───── */}
-      <section id="use-case" className="py-32 px-6 relative">
+      {/* ───── OPEN SOURCE / DEVELOPER SECTION ───── */}
+      <section id="open-source" className="py-32 px-6 relative bg-background">
         <SquiggleLeft />
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 items-center relative z-10">
-          <div>
-            <h2 className="text-4xl font-extrabold tracking-tight mb-6">Built for those who value their time.</h2>
-            <p className="text-foreground/70 font-medium mb-8 leading-relaxed">
-              Whether you are a student cramming for exams, a researcher analyzing hours of interviews, or a professional staying up-to-date with industry trends, Synop is your unfair advantage.
-            </p>
-            <ul className="space-y-4">
-              {['Students & Educators', 'Researchers & Analysts', 'Productivity Enthusiasts'].map((item, i) => (
-                <li key={i} className="flex items-center gap-3 font-bold text-foreground/80">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary"><CheckCircle2 className="w-4 h-4" /></div>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="relative">
-             <div className="absolute inset-0 bg-primary/5 rounded-3xl transform rotate-3" />
-             <div className="bg-card border border-border p-8 rounded-3xl relative z-10 shadow-lg">
-                <div className="flex items-center gap-4 mb-6">
-                   <div className="w-12 h-12 bg-gray-200 dark:bg-gray-800 rounded-full" />
-                   <div>
-                      <div className="font-bold">Sarah Jenkins</div>
-                      <div className="text-xs font-medium text-foreground/50">Stanford Researcher</div>
-                   </div>
+        <div className="max-w-7xl mx-auto">
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-24">
+              <div>
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-foreground/5 text-foreground font-bold text-sm mb-6 border border-border">
+                   <GithubIcon className="w-4 h-4" /> 100% Open Source
                 </div>
-                <p className="italic text-foreground/80 font-medium leading-relaxed">
-                  "I analyze dozens of tech lectures every week. What used to take me 15 hours now takes me exactly 45 minutes. Synop's AI is literal magic."
+                <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6 font-serif">Bring Your Own Key (BYOK). <br/>Zero monthly subscriptions.</h2>
+                <p className="text-foreground/70 font-medium mb-8 leading-relaxed text-lg">
+                  Most AI summarization tools charge you $20/month for basic features. Since Synop is completely open-source and runs locally, you just plug in your own API keys (Gemini, Groq, or OpenRouter) and pay literally fractions of a cent per video—or use free tiers for $0.
                 </p>
-             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ───── SERVER / TECH ───── */}
-      <section id="server" className="py-24 px-6 bg-accent/30 text-center">
-        <div className="max-w-3xl mx-auto">
-           <h2 className="text-4xl font-extrabold tracking-tight mb-6">Powered by the best.</h2>
-           <p className="text-foreground/70 font-medium mb-12">We use a custom fleet of enterprise-grade AI models, including GPT-4o and Claude 3.5, to ensure your summaries are flawless.</p>
-           <div className="flex flex-wrap justify-center gap-8 text-2xl font-black text-foreground/20 uppercase tracking-widest">
-              <span>OpenAI</span>
-              <span>Anthropic</span>
-              <span>Vercel</span>
-              <span>Stripe</span>
+                <ul className="space-y-4">
+                  {[
+                     { icon: Shield, text: 'No hidden tracking or telemetry.' },
+                     { icon: Database, text: 'SQLite database sits entirely on your machine.' },
+                     { icon: Code2, text: 'MIT Licensed. Fork it and build upon it.' }
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-center gap-4 font-bold text-foreground/80">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0"><item.icon className="w-4 h-4" /></div>
+                      {item.text}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="relative group">
+                 <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-600 rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
+                 <div className="bg-[#0f111a] border border-gray-800 p-8 rounded-3xl relative z-10 shadow-2xl font-mono text-sm">
+                    <div className="flex items-center gap-2 mb-6 border-b border-gray-800 pb-4">
+                       <div className="w-3 h-3 rounded-full bg-red-500" />
+                       <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                       <div className="w-3 h-3 rounded-full bg-green-500" />
+                       <span className="ml-2 text-gray-500 font-medium text-xs">Terminal</span>
+                    </div>
+                    <LiveTerminal />
+                 </div>
+              </div>
            </div>
         </div>
       </section>
 
-      {/* ───── PRICING ───── */}
-      <section id="pricing" className="py-32 px-6 max-w-5xl mx-auto">
-        <div className="text-center mb-16 relative">
-          <CloudRight />
-          <h2 className="text-4xl font-extrabold tracking-tight mb-4">Simple, transparent pricing.</h2>
-          <p className="text-foreground/70 font-medium">Start for free. Upgrade when you need more power.</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-          <div className="bg-card border border-border p-10 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-            <h3 className="text-xl font-bold mb-2">Starter</h3>
-            <div className="flex items-end gap-1 mb-6">
-               <span className="text-5xl font-extrabold tracking-tight">$0</span>
-               <span className="text-foreground/50 font-medium mb-1">/mo</span>
-            </div>
-            <p className="text-sm font-medium text-foreground/70 mb-8 pb-8 border-b border-border">Perfect for trying out Gist and summarizing short videos.</p>
-            <ul className="space-y-4 mb-10">
-               <li className="flex items-center gap-3 text-sm font-bold text-foreground/80"><CheckCircle2 className="w-5 h-5 text-primary" /> 5 summaries per month</li>
-               <li className="flex items-center gap-3 text-sm font-bold text-foreground/80"><CheckCircle2 className="w-5 h-5 text-primary" /> Up to 30 min videos</li>
-               <li className="flex items-center gap-3 text-sm font-bold text-foreground/80"><CheckCircle2 className="w-5 h-5 text-primary" /> Basic exports</li>
-            </ul>
-            <button className="w-full h-12 rounded-full bg-accent text-foreground font-bold hover:bg-border transition-colors">Start for free</button>
-          </div>
-          <div className="bg-primary text-white p-10 rounded-3xl shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-bl-full" />
-            <h3 className="text-xl font-bold mb-2">Pro</h3>
-            <div className="flex items-end gap-1 mb-6">
-               <span className="text-5xl font-extrabold tracking-tight">$12</span>
-               <span className="text-white/70 font-medium mb-1">/mo</span>
-            </div>
-            <p className="text-sm font-medium text-white/90 mb-8 pb-8 border-b border-white/20">For heavy users who need unlimited power and AI chat.</p>
-            <ul className="space-y-4 mb-10">
-               <li className="flex items-center gap-3 text-sm font-bold"><CheckCircle2 className="w-5 h-5 text-white/90" /> Unlimited summaries</li>
-               <li className="flex items-center gap-3 text-sm font-bold"><CheckCircle2 className="w-5 h-5 text-white/90" /> Up to 4 hour videos</li>
-               <li className="flex items-center gap-3 text-sm font-bold"><CheckCircle2 className="w-5 h-5 text-white/90" /> "Chat with Video" access</li>
-               <li className="flex items-center gap-3 text-sm font-bold"><CheckCircle2 className="w-5 h-5 text-white/90" /> GPT-4o & Claude 3.5</li>
-            </ul>
-            <button className="w-full h-12 rounded-full bg-white text-primary font-bold hover:bg-gray-100 transition-colors shadow-lg">Upgrade to Pro</button>
-          </div>
-        </div>
-      </section>
+
 
       {/* ───── FOOTER ───── */}
       <footer className="border-t border-border bg-background py-16 px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
            <div className="flex items-center gap-2">
+              <img src="/logo.svg" alt="Synop Logo" className="w-8 h-8" />
               <span className="font-extrabold text-2xl tracking-tight text-foreground">Synop</span>
            </div>
            <div className="flex gap-8 text-sm font-semibold text-foreground/60">
-              <Link href="#" className="hover:text-primary transition-colors">Privacy</Link>
-              <Link href="#" className="hover:text-primary transition-colors">Terms</Link>
-              <Link href="#" className="hover:text-primary transition-colors">Twitter</Link>
+              <Link href="https://github.com/sharadvc/synop" target="_blank" className="hover:text-primary transition-colors flex items-center gap-2"><GithubIcon className="w-4 h-4"/> GitHub Repository</Link>
+              <Link href="https://github.com/sharadvc/synop/issues" target="_blank" className="hover:text-primary transition-colors">Issues & Ideas</Link>
+              <Link href="https://github.com/sharadvc/synop/blob/main/LICENSE" target="_blank" className="hover:text-primary transition-colors">MIT License</Link>
            </div>
-           <p className="text-xs font-medium text-foreground/40">© 2026 Synop. All rights reserved.</p>
+           <p className="text-xs font-medium text-foreground/40">© {new Date().getFullYear()} Synop. Open source.</p>
         </div>
       </footer>
     </div>

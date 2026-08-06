@@ -14,11 +14,24 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Synop — AI Video Summarizer",
-  description: "Generate powerful, concise summaries from any YouTube video in seconds.",
+  title: "Synop | Open Source AI YouTube Summarizer",
+  description: "Extract high signal from noise. Synop is a 100% free, open-source AI tool that transforms hour-long YouTube videos into actionable, dense, and structured summaries in seconds.",
+  keywords: ["youtube summarizer", "AI summary", "open source ai", "video summary", "gemini", "groq", "llama3", "youtube transcript"],
+  authors: [{ name: "Synop" }],
+  openGraph: {
+    title: "Synop | Open Source AI YouTube Summarizer",
+    description: "Extract high signal from noise. Synop is a 100% free, open-source AI tool that transforms hour-long YouTube videos into actionable summaries.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Synop | Open Source AI YouTube Summarizer",
+    description: "Extract high signal from noise. 100% free, open-source AI tool.",
+  }
 };
 
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 export default function RootLayout({
   children,
@@ -27,14 +40,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head />
       <body className={`${inter.variable} ${instrumentSerif.variable} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <LanguageProvider>
+            {children}
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

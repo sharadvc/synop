@@ -1,0 +1,153 @@
+import { generateText } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import Groq from 'groq-sdk';
+
+export const maxDuration = 60;
+
+export async function POST(req: Request) {
+  try {
+    const { messages, videoId, language = "English" } = await req.json();
+    if (!videoId) return NextResponse.json({ error: 'Video ID is required' }, { status: 400 });
+    if (!messages || messages.length === 0) return NextResponse.json({ error: 'No messages provided' }, { status: 400 });
+
+    const recentMessages = messages.slice(-6);
+
+    let systemPrompt = '';
+
+    if (videoId === 'global') {
+      // Global Chat Mode: Fetch recent summaries
+      const summaries = await db.summary.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 10
+      });
+      
+      if (summaries.length === 0) {
+        return NextResponse.json({ error: 'No summaries found in your library yet.' }, { status: 404 });
+      }
+
+      systemPrompt = `You are a highly intelligent AI assistant answering questions based on the user's entire library of saved YouTube video summaries.
+You have been provided with summaries of their recently analyzed videos.
+
+When answering:
+- Be direct, conversational, and highly accurate.
+- Synthesize information across multiple videos if relevant.
+- Cite the "Title" of the video when referencing specific facts.
+- Format your response in clean Markdown.
+- IMPORTANT: You MUST answer in ${language.toUpperCase()}.
+
+--- USER'S VIDEO LIBRARY (RECENT) ---
+${summaries.map(s => `
+[Title: ${s.title}] (Channel: ${s.channel})
+Executive Summary: ${s.executiveSummary}
+Key Insights: ${s.keyInsights}
+`).join('\n')}
+`;
+    } else {
+      // Specific Video Mode
+      const summary = await db.summary.findFirst({ where: { videoId, language } });
+      if (!summary) return NextResponse.json({ error: 'Summary not found. Please summarize the video first.' }, { status: 404 });
+
+      systemPrompt = `You are a highly intelligent AI assistant answering questions about a YouTube video.
+You have been provided with a rich summary as context.
+
+When answering:
+- Be direct, conversational, and highly accurate.
+- IMPORTANT CITATION RULE: Whenever you state a specific fact, quote, or point from the video, you MUST include a deep citation to the exact timestamp using brackets, e.g., [12:30]. Use the Chapters/Timestamps array to find the closest time.
+- Format your response in clean Markdown.
+- IMPORTANT: You MUST answer in ${language.toUpperCase()}.
+
+--- VIDEO SUMMARY ---
+Title: ${summary.title}
+Channel: ${summary.channel}
+Executive Summary: ${summary.executiveSummary}
+Key Insights: ${summary.keyInsights}
+Chapters/Timestamps: ${JSON.stringify(summary.timestamps)}
+Action Items: ${summary.actionItems}
+Quotes: ${summary.quotes}
+Verdict: ${summary.verdict}
+`;
+    }
+
+    const geminiKey = req.headers.get('x-gemini-key') || process.env.GEMINI_API_KEY;
+    const groqKey = req.headers.get('x-groq-key') || process.env.GROQ_API_KEY;
+    const openRouterKey = req.headers.get('x-openrouter-key') || process.env.OPENAI_API_KEY;
+
+    // Normalize messages to simple {role, content} format
+    const chatMessages = recentMessages.map((m: any) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content || '',
+    }));
+
+    let responseText = '';
+    const errors: string[] = [];
+
+    // Provider 1: Groq (fastest, most reliable with native SDK)
+    if (!responseText && groqKey) {
+      try {
+        const groq = new Groq({ apiKey: groqKey });
+        const completion = await groq.chat.completions.create({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'system', content: systemPrompt }, ...chatMessages],
+          temperature: 0.7,
+          max_tokens: 2048,
+        });
+        responseText = completion.choices[0]?.message?.content || '';
+      } catch (err: any) {
+        errors.push(`Groq: ${err.message}`);
+      }
+    }
+
+    // Provider 2: Gemini
+    if (!responseText && geminiKey) {
+      try {
+        const google = createGoogleGenerativeAI({ apiKey: geminiKey });
+        const result = await generateText({
+          model: google('gemini-2.0-flash'),
+          system: systemPrompt,
+          messages: chatMessages,
+          temperature: 0.7,
+          maxRetries: 1,
+        });
+        responseText = result.text;
+      } catch (err: any) {
+        errors.push(`Gemini: ${err.message}`);
+      }
+    }
+
+    // Provider 3: OpenRouter
+    if (!responseText && openRouterKey) {
+      try {
+        const openRouter = createOpenAI({
+          baseURL: 'https://openrouter.ai/api/v1',
+          apiKey: openRouterKey,
+        });
+        const result = await generateText({
+          model: openRouter('google/gemini-2.0-flash-lite-preview-02-05:free'),
+          system: systemPrompt,
+          messages: chatMessages,
+          temperature: 0.7,
+          maxRetries: 1,
+        });
+        responseText = result.text;
+      } catch (err: any) {
+        errors.push(`OpenRouter: ${err.message}`);
+      }
+    }
+
+    if (!responseText) {
+      const errorMsg = errors.length > 0
+        ? `All providers failed: ${errors.join(' | ')}`
+        : 'No API keys configured. Please add keys in Settings.';
+      return NextResponse.json({ error: errorMsg }, { status: 500 });
+    }
+
+    // Return plain JSON - simple, reliable, no streaming protocol issues
+    return NextResponse.json({ reply: responseText });
+  } catch (error: any) {
+    console.error('Chat API Error:', error);
+    return NextResponse.json({ error: error.message || 'Chat failed' }, { status: 500 });
+  }
+}

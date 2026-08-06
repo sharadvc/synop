@@ -1,4 +1,4 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# dependencies
 
 # dependencies
 /node_modules
@@ -41,3 +41,24 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# agent / ide config (local only)
+.agents/
+.claude/
+.windsurf/
+.superdesign/
+AGENTS.md
+CLAUDE.md
+skills-lock.json
+
+# junk
+test_*.js
+test-*.js
+dump.html
+push_env.sh
+requirements.txt
+youtube_out.html
+proxy_out.html
+scratch_test/
+# api/
+*.player-script.js

@@ -33,7 +33,7 @@
   </g>
   <g transform="translate(260, 420)">
     <rect x="0" y="0" width="160" height="40" rx="999" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-    <text x="80" y="25" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="500" fill="#94a3b8" text-anchor="middle">Star on GitHub</text>
+    <text x="80" y="25" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="500" fill="#94a3b8" text-anchor="middle">View on GitHub</text>
   </g>
   <g transform="translate(820, 120)">
     <rect x="0" y="0" width="300" height="380" rx="20" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>

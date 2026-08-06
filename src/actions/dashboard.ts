@@ -2,22 +2,24 @@
 
 import { db } from "@/lib/db";
 
-export async function getDashboardData() {
-  // Clerk muted for local dev — use a fixed dev user.
-  const userId = "dev-user";
-  if (!userId) return null;
-
-  const [user, summaries] = await Promise.all([
-    db.user.findUnique({ where: { id: userId } }),
+export async function getDashboardData(language?: string) {
+  const [summaries, folders] = await Promise.all([
     db.summary.findMany({
-      where: { userId },
+      where: language ? { language } : undefined,
       orderBy: { createdAt: 'desc' },
-      take: 10
+      take: 50
+    }),
+    db.folder.findMany({
+      orderBy: { createdAt: 'asc' },
+      include: {
+        _count: {
+          select: { summaries: true }
+        }
+      }
     })
   ]);
 
   return {
-    credits: user?.credits ?? 0,
     summaries: summaries.map(s => ({
       id: s.id,
       videoId: s.videoId,
@@ -25,7 +27,28 @@ export async function getDashboardData() {
       channel: s.channel,
       duration: s.duration,
       status: s.status,
+      folderId: s.folderId,
+      executiveSummary: s.executiveSummary,
+      keyInsights: s.keyInsights,
+      actionItems: s.actionItems,
+      quotes: s.quotes,
+      timestamps: s.timestamps,
+      resources: s.resources,
+      verdict: s.verdict,
+      biasAnalysis: s.biasAnalysis,
+      frameworks: s.frameworks,
+      entities: s.entities,
+      mindMap: s.mindMap,
+      blogPost: s.blogPost,
+      twitterThread: s.twitterThread,
+      linkedinPost: s.linkedinPost,
       date: s.createdAt.toISOString()
+    })),
+    folders: folders.map(f => ({
+      id: f.id,
+      name: f.name,
+      color: f.color,
+      count: f._count.summaries
     }))
   };
 }

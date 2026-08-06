@@ -4,19 +4,13 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
-}
-
-model User {
-  id        String    @id
-  credits   Int       @default(5)
-  summaries Summary[]
+  url      = "file:./dev.db?connection_limit=1&timeout=5000"
 }
 
 model Summary {
   id               String   @id @default(cuid())
-  userId           String
   videoId          String
+  language         String   @default("English")
   title            String
   channel          String
   duration         String
@@ -28,7 +22,34 @@ model Summary {
   timestamps       String
   resources        String
   verdict          String
+  biasAnalysis     String?
+  frameworks       String?
+  entities         String?
+  mindMap          String?
+  folderId         String?
+  folder           Folder?  @relation(fields: [folderId], references: [id])
+  tags             Tag[]
+  blogPost         String?
+  twitterThread    String?
+  linkedinPost     String?
+  notes            String?
+  transcript       String?
   createdAt        DateTime @default(now())
+}
 
-  user User @relation(fields: [userId], references: [id])
+model Folder {
+  id        String    @id @default(cuid())
+  name      String
+  color     String?   @default("gray")
+  summaries Summary[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  color     String?   @default("blue")
+  summaries Summary[]
+  createdAt DateTime  @default(now())
 }
