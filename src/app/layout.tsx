@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
-import { shadcn } from '@clerk/ui/themes';
-import '@clerk/ui/themes/shadcn.css';
 import "./globals.css";
 
 const inter = Inter({
@@ -29,19 +26,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider appearance={{ theme: shadcn }}>
-      <html lang="en" suppressHydrationWarning>
-        <body className={`${inter.variable} ${instrumentSerif.variable} antialiased`}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} ${instrumentSerif.variable} antialiased`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
   );
 }

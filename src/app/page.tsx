@@ -6,7 +6,6 @@ import { ArrowRight, Play, Zap, Search, LayoutDashboard, Folder, MessageSquare, 
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 
 // Hand-drawn SVG components
 const CloudLeft = () => (
@@ -45,7 +44,9 @@ const Underline = () => (
 
 export default function Home() {
   const router = useRouter();
-  const { isSignedIn, isLoaded } = useUser();
+  // Clerk muted for local dev — always show the landing page.
+  const isSignedIn = false;
+  const isLoaded = true;
 
   useEffect(() => {
     if (isLoaded && isSignedIn) {

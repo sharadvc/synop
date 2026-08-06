@@ -1,10 +1,10 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 
 export async function getDashboardData() {
-  const { userId } = await auth();
+  // Clerk muted for local dev — use a fixed dev user.
+  const userId = "dev-user";
   if (!userId) return null;
 
   const [user, summaries] = await Promise.all([

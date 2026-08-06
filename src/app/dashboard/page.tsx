@@ -3,7 +3,6 @@
 import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useUser, UserButton } from "@clerk/nextjs";
 import { getDashboardData } from "@/actions/dashboard";
 
 function extractVideoId(url: string) {
@@ -12,7 +11,8 @@ function extractVideoId(url: string) {
 }
 
 export default function DashboardPage() {
-  const { user } = useUser();
+  // Clerk muted for local dev — fixed dev user.
+  const user = { fullName: 'Dev User', firstName: 'Dev' };
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [summaries, setSummaries] = useState<any[]>([]);
@@ -67,7 +67,7 @@ export default function DashboardPage() {
 
           <div className="mt-auto pt-6 border-t border-border/50">
              <div className="flex items-center gap-3 px-3">
-                <UserButton appearance={{ elements: { avatarBox: "w-8 h-8 rounded-lg" } }} />
+                <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-xs font-bold">D</div>
                 <div className="flex flex-col">
                    <span className="text-sm font-bold text-foreground">{user?.fullName || 'My Account'}</span>
                    <span className="text-xs font-medium text-foreground/50">Manage Profile</span>
@@ -81,7 +81,7 @@ export default function DashboardPage() {
           {/* Mobile Header (Visible only on small screens) */}
           <div className="flex md:hidden items-center justify-between mb-8 pb-4 border-b border-border">
              <div className="font-extrabold text-xl tracking-tight cursor-pointer" onClick={() => router.push('/')}>Gist</div>
-             <UserButton appearance={{ elements: { avatarBox: "w-8 h-8 rounded-lg" } }} />
+             <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-xs font-bold">D</div>
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">

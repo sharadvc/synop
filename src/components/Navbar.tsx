@@ -1,6 +1,5 @@
 "use client";
 import Link from 'next/link';
-import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
 import { useTheme } from "next-themes";
 import { Moon, Sun, ChevronDown, Globe } from "lucide-react";
 import { useEffect, useState } from 'react';
@@ -51,19 +50,14 @@ export default function Navbar() {
              Contact
           </Link>
 
-          <Show when="signed-in">
-            <Link href="/dashboard">
-              <span className="text-[13px] font-bold text-foreground">Dashboard</span>
-            </Link>
-            <UserButton />
-          </Show>
-          <Show when="signed-out">
-            <SignInButton mode="modal">
-              <button className="text-[13px] font-bold rounded-full px-6 h-10 bg-foreground text-background hover:opacity-90 transition-opacity">
-                 Login
-              </button>
-            </SignInButton>
-          </Show>
+          <Link href="/dashboard">
+            <span className="text-[13px] font-bold text-foreground">Dashboard</span>
+          </Link>
+          <Link href="/dashboard">
+            <button className="text-[13px] font-bold rounded-full px-6 h-10 bg-foreground text-background hover:opacity-90 transition-opacity">
+               Login
+            </button>
+          </Link>
         </div>
       </div>
     </nav>

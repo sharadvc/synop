@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { extractVideoId, getTranscript } from '@/lib/youtube';
-import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 
 export const maxDuration = 120;
@@ -139,7 +138,8 @@ async function callModelWithFallback(transcript: string): Promise<any> {
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
+    // Clerk muted for local dev — use a fixed dev user.
+    const userId = 'dev-user';
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
     }
