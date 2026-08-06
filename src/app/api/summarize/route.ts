@@ -120,6 +120,7 @@ export async function POST(req: Request) {
     if (existingSummary) {
        return NextResponse.json({
          videoId,
+         provider,
          meta: { title: existingSummary.title, author_name: existingSummary.channel, thumbnail_url: "" },
          summary: {
             executiveSummary: existingSummary.executiveSummary,
