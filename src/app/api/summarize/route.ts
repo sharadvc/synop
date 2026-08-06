@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { extractVideoId, getTranscript } from '@/lib/youtube';
 import { db } from '@/lib/db';
@@ -253,11 +252,7 @@ async function callModelWithFallback(transcript: string, keys: CustomKeys, langu
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const auth = cookieStore.get('synop_auth');
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Auth removed at 04d6622 (master-password auth deleted, cookie never set) — muted for local dev.
 
     const { url, language = 'English', customPrompt } = await req.json();
     if (!url) return NextResponse.json({ error: 'YouTube URL is required' }, { status: 400 });

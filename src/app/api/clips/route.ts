@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { extractVideoId, getTranscript } from '@/lib/youtube';
 
 const buildClipsPrompt = (language: string = "English") => `You are an elite short-form video editor and viral strategist (expert in TikTok, YouTube Shorts, and Reels).
@@ -27,11 +26,7 @@ NO MARKDOWN. NO CODE BLOCKS. JUST RAW JSON.`;
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const auth = cookieStore.get('synop_auth');
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Auth removed at 04d6622 (master-password auth deleted, cookie never set) — muted for local dev.
 
     const body = await req.json();
     const language = body.language || "English";

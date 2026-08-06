@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { exec, execFile } from 'child_process';
 import util from 'util';
 import fs from 'fs';
@@ -32,11 +31,7 @@ function formatSrtTime(seconds: number): string {
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const auth = cookieStore.get('synop_auth');
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Auth removed at 04d6622 (master-password auth deleted, cookie never set) — muted for local dev.
 
     const { videoId, timeRange, script, hook } = await req.json();
 
