@@ -126,7 +126,7 @@ async function chatCompletion(
       temperature: opts.temperature ?? 0.2,
       max_tokens: opts.maxTokens ?? 4000,
     }),
-    signal: AbortSignal.timeout(90_000),
+    signal: AbortSignal.timeout(45_000),
   });
 
   if (res.status === 429) {

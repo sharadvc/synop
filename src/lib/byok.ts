@@ -22,7 +22,7 @@ const DEFAULT_KEYS: ProviderKeys = {
 };
 
 export function getByokConfig(): ByokConfig {
-  const fallback: ByokConfig = { provider: "openrouter", keys: DEFAULT_KEYS };
+  const fallback: ByokConfig = { provider: "deepseek", keys: DEFAULT_KEYS };
   if (typeof window === "undefined") return fallback;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -30,7 +30,7 @@ export function getByokConfig(): ByokConfig {
     const parsed = JSON.parse(raw);
     const provider: Provider = ["openrouter", "groq", "deepseek", "openai"].includes(parsed?.provider)
       ? parsed.provider
-      : "openrouter";
+      : "deepseek";
     return { provider, keys: { ...DEFAULT_KEYS, ...(parsed?.keys ?? {}) } };
   } catch {
     return fallback;

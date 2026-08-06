@@ -193,7 +193,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                  </div>
                  <div className="text-center relative z-10">
                    <p className="text-lg font-bold text-foreground">Analyzing Video Deeply...</p>
-                   <p className="text-sm font-medium text-foreground/50 mt-1 max-w-sm">Extracting transcript and running extreme analytical summarization.</p>
+                   <p className="text-sm font-medium text-foreground/50 mt-1 max-w-sm">Extracting transcript and running extreme analytical summarization. Free AI models are slow — this can take 1–3 minutes.</p>
                  </div>
                </div>
 
