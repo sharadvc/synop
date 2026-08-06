@@ -1,0 +1,297 @@
+"use client";
+
+import Navbar from "@/components/Navbar";
+import { Copy, Download, Share2, Clock, CheckCircle2, Loader2, AlertCircle, FileText, ArrowLeft, Lightbulb, ListTodo, Bookmark, Cpu, Quote } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { use, useEffect, useState } from "react";
+import { motion } from "framer-motion";
+
+interface SummaryData {
+  executiveSummary: string;
+  keyInsights: string[];
+  actionItems: string[];
+  quotes: string[];
+  timestamps: { time: string; topic: string; details: string }[];
+  resources: string[];
+  verdict: string;
+}
+
+interface ApiResponse {
+  videoId: string;
+  meta: { title: string; author_name: string; thumbnail_url: string } | null;
+  transcript: string | null;
+  summary: SummaryData | null;
+  aiError: string | null;
+  error?: string;
+}
+
+function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+  return (
+    <button 
+       onClick={onClick} 
+       className={`relative px-4 py-3 text-sm font-bold transition-colors whitespace-nowrap cursor-pointer rounded-lg flex items-center gap-2 ${active ? "bg-primary text-white shadow-sm" : "text-foreground/60 hover:bg-accent"}`}
+    >
+      {icon} {label}
+    </button>
+  );
+}
+
+export default function SummaryPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [data, setData] = useState<ApiResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("insights");
+
+  useEffect(() => {
+    setLoading(true); setError(null);
+    fetch("/api/summarize", { 
+       method: "POST", 
+       headers: { "Content-Type": "application/json" }, 
+       body: JSON.stringify({ url: `https://youtube.com/watch?v=${id}` }) 
+    })
+      .then(r => r.json())
+      .then(j => { if (j.error) setError(j.error); else setData(j); })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const meta = data?.meta;
+  const title = meta?.title ?? `Video ${id}`;
+  const channel = meta?.author_name ?? "";
+  const thumbnail = meta?.thumbnail_url ? meta.thumbnail_url.replace("hqdefault", "maxresdefault") : `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
+  const summary = data?.summary;
+  const transcript = data?.transcript;
+
+  const tabs = [
+    { id: "insights", label: "Key Insights", icon: <Lightbulb className="w-4 h-4" /> },
+    { id: "timestamps", label: "Chapter Breakdown", icon: <Clock className="w-4 h-4" /> },
+    { id: "action", label: "Action Items", icon: <ListTodo className="w-4 h-4" /> },
+    { id: "quotes", label: "Quotes & Resources", icon: <Bookmark className="w-4 h-4" /> },
+  ];
+
+  return (
+    <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
+      <Navbar />
+      <main className="flex-1 pt-24 pb-16">
+        <div className="max-w-4xl mx-auto px-6">
+
+          {loading && (
+            <div className="space-y-10 animate-pulse mt-4">
+               {/* Skeleton Header */}
+               <div className="flex items-center gap-4">
+                  <div className="w-40 h-10 bg-accent rounded-lg" />
+                  <div className="flex items-center gap-2 ml-auto">
+                     <div className="w-24 h-10 bg-accent rounded-lg" />
+                     <div className="w-24 h-10 bg-accent rounded-lg" />
+                  </div>
+               </div>
+
+               {/* Skeleton Video Meta */}
+               <div className="flex flex-col md:flex-row gap-8 bg-card border border-border p-6 rounded-2xl shadow-sm">
+                  <div className="shrink-0 w-full md:w-72 h-[180px] bg-accent/50 rounded-xl" />
+                  <div className="flex flex-col justify-center gap-5 w-full">
+                     <div className="w-32 h-6 bg-accent rounded-full" />
+                     <div className="w-3/4 h-10 bg-accent rounded-lg" />
+                     <div className="w-1/2 h-8 bg-accent rounded-lg" />
+                  </div>
+               </div>
+
+               {/* Loader Indicator */}
+               <div className="flex flex-col items-center justify-center py-16 gap-6 bg-card border border-border rounded-2xl shadow-sm relative overflow-hidden">
+                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent bg-[length:200%_100%] animate-[shimmer_2s_infinite]" />
+                 <div className="relative">
+                   <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                   <div className="absolute inset-0 w-10 h-10 rounded-full blur-xl bg-primary/20" />
+                 </div>
+                 <div className="text-center relative z-10">
+                   <p className="text-lg font-bold text-foreground">Analyzing Video Deeply...</p>
+                   <p className="text-sm font-medium text-foreground/50 mt-1 max-w-sm">Extracting transcript and running extreme analytical summarization.</p>
+                 </div>
+               </div>
+
+               {/* Skeleton Exec Summary */}
+               <div className="h-64 bg-accent/50 rounded-2xl border border-border" />
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="flex flex-col items-center justify-center py-40 gap-4">
+              <div className="w-16 h-16 bg-red-50 border border-red-100 rounded-2xl flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-red-500" />
+              </div>
+              <p className="text-lg font-bold text-foreground">Failed to process video</p>
+              <p className="text-sm font-medium text-foreground/60 max-w-xs text-center">{error}</p>
+              <Link href="/"><button className="mt-4 h-10 px-6 rounded-lg bg-primary hover:bg-blue-700 text-white text-sm font-bold shadow-sm transition-colors">Try another video</button></Link>
+            </div>
+          )}
+
+          {data && !loading && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
+              
+              {/* Header Navigation */}
+              <div className="flex items-center gap-4">
+                <Link href="/dashboard" className="flex items-center gap-2 text-sm font-bold text-foreground/50 hover:text-foreground transition-colors bg-accent/50 px-4 py-2 rounded-lg">
+                  <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+                </Link>
+                {summary && (
+                  <div className="flex items-center gap-2 ml-auto">
+                    <button className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-foreground/60 hover:text-foreground hover:bg-accent rounded-lg transition-colors border border-transparent hover:border-border"><Copy className="w-4 h-4" /> Copy</button>
+                    <button className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-foreground/60 hover:text-foreground hover:bg-accent rounded-lg transition-colors border border-transparent hover:border-border"><Download className="w-4 h-4" /> PDF</button>
+                  </div>
+                )}
+              </div>
+
+              {/* Video Meta Hero */}
+              <div className="flex flex-col md:flex-row gap-8 bg-card border border-border p-6 rounded-2xl shadow-sm">
+                <div className="shrink-0 w-full md:w-72">
+                  <Image src={thumbnail} alt={title} width={320} height={180} className="rounded-xl border border-border object-cover w-full h-auto shadow-sm" unoptimized />
+                </div>
+                <div className="flex flex-col justify-center">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent rounded-full text-xs font-bold text-foreground/60 mb-4 w-fit">
+                    <div className="w-2 h-2 rounded-full bg-primary" /> {channel}
+                  </div>
+                  <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground leading-snug">{title}</h1>
+                </div>
+              </div>
+
+              {data.aiError && (
+                <div className="p-4 rounded-xl bg-orange-50 border border-orange-100 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-orange-900">AI summary unavailable</p>
+                    <p className="text-xs font-medium text-orange-700/80 mt-1">
+                      {data.aiError?.includes("credits") ? "OpenRouter needs credits." : "Falling back to raw transcript."}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {summary && (
+                <>
+                  {/* Executive Summary Section */}
+                  <div className="relative overflow-hidden rounded-2xl bg-primary text-white shadow-xl p-8 md:p-10">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-bl-full" />
+                    <div className="relative z-10">
+                       <div className="flex items-center gap-3 mb-6">
+                         <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                           <Cpu className="w-5 h-5 text-white" />
+                         </div>
+                         <h2 className="text-xl font-extrabold tracking-tight text-white">Executive Summary</h2>
+                       </div>
+                       <div className="text-[15px] font-medium leading-relaxed text-white/90 space-y-4 whitespace-pre-wrap">
+                          {summary.executiveSummary}
+                       </div>
+                       
+                       <div className="mt-8 pt-6 border-t border-white/20">
+                          <p className="text-xs font-bold uppercase tracking-wider text-white/60 mb-2">The Verdict</p>
+                          <p className="text-sm font-bold text-white">{summary.verdict}</p>
+                       </div>
+                    </div>
+                  </div>
+
+                  {/* Tabs */}
+                  <div className="flex gap-2 overflow-x-auto pb-2 mb-2 scrollbar-hide">
+                    {tabs.map(t => <TabBtn key={t.id} active={activeTab === t.id} onClick={() => setActiveTab(t.id)} icon={t.icon} label={t.label} />)}
+                  </div>
+
+                  {/* Tab Content */}
+                  <div className="min-h-[400px]">
+                    {activeTab === "insights" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {summary.keyInsights.map((insight, i) => (
+                          <div key={i} className="bg-card border border-border p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm mb-4">
+                               {i + 1}
+                            </div>
+                            <p className="text-[15px] font-medium leading-relaxed text-foreground/80">{insight}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {activeTab === "action" && (
+                      <div className="space-y-4">
+                        {summary.actionItems.map((item, i) => (
+                          <div key={i} className="flex gap-4 p-6 bg-card border border-border rounded-2xl shadow-sm items-start">
+                            <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center shrink-0 mt-0.5">
+                               <CheckCircle2 className="w-4 h-4 text-green-600" />
+                            </div>
+                            <p className="text-[15px] font-medium leading-relaxed text-foreground/80">{item}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {activeTab === "timestamps" && (
+                      <div className="space-y-4">
+                        {summary.timestamps.map((ts, i) => (
+                          <div key={i} className="flex flex-col md:flex-row gap-4 p-6 bg-card border border-border rounded-2xl shadow-sm hover:border-primary/30 transition-colors">
+                            <div className="shrink-0 flex md:flex-col items-center md:items-start gap-3">
+                               <span className="inline-flex items-center justify-center px-3 py-1 rounded-lg bg-primary/10 text-primary font-bold font-mono text-sm">
+                                  {ts.time}
+                               </span>
+                            </div>
+                            <div>
+                               <h3 className="text-lg font-bold text-foreground mb-2">{ts.topic}</h3>
+                               <p className="text-sm font-medium text-foreground/70 leading-relaxed">{ts.details}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {activeTab === "quotes" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-6">
+                          <h3 className="text-sm font-bold text-foreground/50 uppercase tracking-wider mb-4 flex items-center gap-2"><Quote className="w-4 h-4" /> Notable Quotes</h3>
+                          {summary.quotes.map((quote, i) => (
+                            <blockquote key={i} className="relative p-6 bg-card border border-border rounded-2xl shadow-sm">
+                               <div className="absolute top-4 left-4 text-4xl text-primary/20 font-serif">"</div>
+                               <p className="relative z-10 text-[15px] italic font-medium leading-relaxed text-foreground/80 pt-4">
+                                  {quote}
+                               </p>
+                            </blockquote>
+                          ))}
+                        </div>
+
+                        <div className="space-y-6">
+                          <h3 className="text-sm font-bold text-foreground/50 uppercase tracking-wider mb-4 flex items-center gap-2"><Bookmark className="w-4 h-4" /> Mentioned Resources</h3>
+                          <div className="space-y-3">
+                             {summary.resources.map((res, i) => (
+                               <div key={i} className="flex items-center gap-4 p-4 bg-card border border-border rounded-xl shadow-sm">
+                                 <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0">
+                                    <FileText className="w-4 h-4 text-foreground/50" />
+                                 </div>
+                                 <span className="text-[15px] font-medium text-foreground/80">{res}</span>
+                               </div>
+                             ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {!summary && transcript && (
+                <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-3 p-6 border-b border-border bg-accent/30">
+                    <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-foreground/60" />
+                    </div>
+                    <h2 className="text-lg font-bold text-foreground">Raw Transcript</h2>
+                  </div>
+                  <div className="max-h-[600px] overflow-y-auto p-6 bg-background">
+                     <p className="text-sm font-mono text-foreground/70 whitespace-pre-wrap leading-relaxed">{transcript}</p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
