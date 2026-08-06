@@ -65,7 +65,10 @@ export default function DashboardPage() {
              ))}
           </div>
 
-          <div className="mt-auto pt-6 border-t border-border/50">
+          <div className="mt-auto pt-6 border-t border-border/50 space-y-1">
+             <div className="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-foreground/60 hover:text-foreground hover:bg-accent rounded-lg cursor-pointer transition-colors" onClick={() => router.push('/settings')}>
+                <Settings className="w-4 h-4" /> Settings
+             </div>
              <div className="flex items-center gap-3 px-3">
                 <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-xs font-bold">D</div>
                 <div className="flex flex-col">

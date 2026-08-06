@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { extractVideoId, getTranscript } from '@/lib/youtube';
 import { db } from '@/lib/db';
+import { summarizeWithProvider, PROVIDERS, PROVIDER_LABELS, type Provider } from '@/lib/ai';
 
 export const maxDuration = 120;
 
@@ -14,15 +15,6 @@ const summarySchema = z.object({
   resources: z.array(z.string()),
   verdict: z.string(),
 });
-
-const MODELS = [
-  "google/gemini-2.5-pro:free",
-  "google/gemini-2.0-pro-exp-02-05:free",
-  "google/gemma-4-26b-a4b-it:free",
-  "google/gemma-4-31b-it:free",
-  "inclusionai/ling-3.0-flash:free",
-  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-];
 
 const SUMMARY_PROMPT = `You are a world-class executive analyst and expert summarizer. Your task is to process this raw YouTube transcript and generate an immensely powerful, deeply insightful, and comprehensive summary. Do not give surface-level fluff. Dig deep into the core arguments, hidden nuances, and step-by-step logic.
 
@@ -82,59 +74,13 @@ async function getVideoMeta(videoId: string) {
   }
 }
 
-const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-async function callModelWithFallback(transcript: string): Promise<any> {
-  let lastErr: Error | null = null;
-
-  for (const model of MODELS) {
-    try {
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://youtube-summary-ai.vercel.app",
-          "X-Title": "YouTube Summary AI",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: SUMMARY_PROMPT },
-            { role: "user", content: `Transcript:\n\n${transcript.substring(0, 35000)}` },
-          ],
-          temperature: 0.2, 
-          max_tokens: 4000, 
-        }),
-      });
-
-      if (res.status === 429) {
-        console.error(`  ${model} rate-limited, waiting...`);
-        await delay(2000);
-        continue;
-      }
-      if (res.status === 401) throw new Error("Invalid API key");
-      if (res.status === 402) throw new Error("OpenRouter account needs credits");
-      if (!res.ok) {
-        const err = await res.text();
-        console.error(`  ${model} failed:`, err.substring(0, 100));
-        continue;
-      }
-
-      const json = await res.json();
-      const content = json.choices?.[0]?.message?.content;
-      if (!content) continue;
-
-      return extractJson(content);
-    } catch (err: any) {
-      lastErr = err;
-      console.error(`  ${model} error:`, err.message);
-      await delay(1000);
-    }
-  }
-
-  throw lastErr || new Error("All summarization models unavailable. Try again later.");
-}
+// Env keys are used only as a fallback when no key is supplied in the request (BYOK).
+const ENV_API_KEYS: Record<Provider, string | undefined> = {
+  openrouter: process.env.OPENROUTER_API_KEY,
+  groq: process.env.GROQ_API_KEY,
+  deepseek: process.env.DEEPSEEK_API_KEY,
+  openai: process.env.OPENAI_API_KEY,
+};
 
 export async function POST(req: Request) {
   try {
@@ -144,8 +90,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
     }
 
-    const { url } = await req.json();
+    const body = await req.json();
+    const url = body?.url;
     if (!url) return NextResponse.json({ error: 'YouTube URL is required' }, { status: 400 });
+
+    // BYOK: provider + key come from the client (Settings page). Env is the fallback.
+    const provider: Provider =
+      PROVIDERS.includes(body?.provider) ? body.provider : 'openrouter';
+    const apiKey = String(body?.apiKey ?? '').trim() || ENV_API_KEYS[provider] || '';
 
     const videoId = extractVideoId(url);
     if (!videoId) return NextResponse.json({ error: 'Invalid YouTube URL' }, { status: 400 });
@@ -155,7 +107,7 @@ export async function POST(req: Request) {
     if (!user) {
       user = await db.user.create({ data: { id: userId, credits: 5 } });
     }
-    
+
     if (user.credits <= 0) {
       return NextResponse.json({ error: 'You are out of credits. Please upgrade to Pro.' }, { status: 403 });
     }
@@ -190,42 +142,54 @@ export async function POST(req: Request) {
     let aiError: string | null = null;
 
     if (transcript) {
-      try {
-        summary = await callModelWithFallback(transcript);
-        summary = summarySchema.parse(summary);
+      if (!apiKey) {
+        aiError = `No API key configured for ${PROVIDER_LABELS[provider]}. Add your key in Settings → Bring Your Own Key.`;
+        console.error(aiError);
+      } else {
+        try {
+          const { content, model } = await summarizeWithProvider({
+            provider,
+            apiKey,
+            system: SUMMARY_PROMPT,
+            transcript,
+          });
+          console.error(`AI summary via ${provider}/${model}`);
+          summary = summarySchema.parse(extractJson(content));
 
-        // Deduct credit and save to DB
-        await db.$transaction([
-          db.user.update({
-            where: { id: userId },
-            data: { credits: { decrement: 1 } }
-          }),
-          db.summary.create({
-            data: {
-              userId,
-              videoId,
-              title: meta?.title || "Unknown Title",
-              channel: meta?.author_name || "Unknown Channel",
-              duration: "TBD",
-              executiveSummary: summary.executiveSummary,
-              keyInsights: JSON.stringify(summary.keyInsights),
-              actionItems: JSON.stringify(summary.actionItems),
-              quotes: JSON.stringify(summary.quotes),
-              timestamps: JSON.stringify(summary.timestamps),
-              resources: JSON.stringify(summary.resources),
-              verdict: summary.verdict,
-            }
-          })
-        ]);
+          // Deduct credit and save to DB
+          await db.$transaction([
+            db.user.update({
+              where: { id: userId },
+              data: { credits: { decrement: 1 } }
+            }),
+            db.summary.create({
+              data: {
+                userId,
+                videoId,
+                title: meta?.title || "Unknown Title",
+                channel: meta?.author_name || "Unknown Channel",
+                duration: "TBD",
+                executiveSummary: summary.executiveSummary,
+                keyInsights: JSON.stringify(summary.keyInsights),
+                actionItems: JSON.stringify(summary.actionItems),
+                quotes: JSON.stringify(summary.quotes),
+                timestamps: JSON.stringify(summary.timestamps),
+                resources: JSON.stringify(summary.resources),
+                verdict: summary.verdict,
+              }
+            })
+          ]);
 
-      } catch (err: any) {
-        aiError = err.message;
-        console.error("AI generation failed:", err.message);
+        } catch (err: any) {
+          aiError = err.message;
+          console.error("AI generation failed:", err.message);
+        }
       }
     }
 
     return NextResponse.json({
       videoId,
+      provider,
       meta,
       transcript: transcript ? transcript.substring(0, 3000) : null,
       summary,

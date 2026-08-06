@@ -53,6 +53,9 @@ export default function Navbar() {
           <Link href="/dashboard">
             <span className="text-[13px] font-bold text-foreground">Dashboard</span>
           </Link>
+          <Link href="/settings">
+            <span className="text-[13px] font-bold text-foreground/60 hover:text-foreground transition-colors">Settings</span>
+          </Link>
           <Link href="/dashboard">
             <button className="text-[13px] font-bold rounded-full px-6 h-10 bg-foreground text-background hover:opacity-90 transition-opacity">
                Login

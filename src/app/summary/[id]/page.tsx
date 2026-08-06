@@ -6,6 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { use, useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { getByokConfig } from "@/lib/byok";
+import { PROVIDER_LABELS, type Provider } from "@/lib/providers";
 
 interface SummaryData {
   executiveSummary: string;
@@ -19,6 +21,7 @@ interface SummaryData {
 
 interface ApiResponse {
   videoId: string;
+  provider?: string;
   meta: { title: string; author_name: string; thumbnail_url: string } | null;
   transcript: string | null;
   summary: SummaryData | null;
@@ -46,10 +49,15 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
 
   useEffect(() => {
     setLoading(true); setError(null);
-    fetch("/api/summarize", { 
-       method: "POST", 
-       headers: { "Content-Type": "application/json" }, 
-       body: JSON.stringify({ url: `https://youtube.com/watch?v=${id}` }) 
+    const cfg = getByokConfig();
+    fetch("/api/summarize", {
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({
+         url: `https://youtube.com/watch?v=${id}`,
+         provider: cfg.provider,
+         apiKey: cfg.keys[cfg.provider]?.trim() || "",
+       })
     })
       .then(r => r.json())
       .then(j => { if (j.error) setError(j.error); else setData(j); })
@@ -149,8 +157,15 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                   <Image src={thumbnail} alt={title} width={320} height={180} className="rounded-xl border border-border object-cover w-full h-auto shadow-sm" unoptimized />
                 </div>
                 <div className="flex flex-col justify-center">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent rounded-full text-xs font-bold text-foreground/60 mb-4 w-fit">
-                    <div className="w-2 h-2 rounded-full bg-primary" /> {channel}
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent rounded-full text-xs font-bold text-foreground/60 w-fit">
+                      <div className="w-2 h-2 rounded-full bg-primary" /> {channel}
+                    </div>
+                    {data.provider && (
+                      <div className="inline-flex items-center px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-bold w-fit">
+                        via {PROVIDER_LABELS[data.provider as Provider] ?? data.provider}
+                      </div>
+                    )}
                   </div>
                   <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground leading-snug">{title}</h1>
                 </div>
@@ -161,9 +176,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                   <AlertCircle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-bold text-orange-900">AI summary unavailable</p>
-                    <p className="text-xs font-medium text-orange-700/80 mt-1">
-                      {data.aiError?.includes("credits") ? "OpenRouter needs credits." : "Falling back to raw transcript."}
-                    </p>
+                    <p className="text-xs font-medium text-orange-700/80 mt-1">{data.aiError}</p>
                   </div>
                 </div>
               )}

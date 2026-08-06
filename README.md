@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Synop — first version (YouTube Summary AI)
 
-## Getting Started
+The original synop: paste a YouTube link, get a dense, structured AI summary —
+executive summary, key insights, action items, quotes, chapter timestamps, and a verdict.
 
-First, run the development server:
+Clerk auth has been **muted for local dev** (no sign-in required, fixed `dev-user`).
+
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# → http://localhost:3456
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Bring Your Own Key (BYOK)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Summarization runs on **your** AI key. Open **Settings → Bring Your Own Key**, pick a
+provider, paste a key, save. Keys live in your browser's `localStorage` and are sent only
+to this app's `/api/summarize` endpoint.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Supported providers (strictly free where marked):
 
-## Learn More
+| Provider      | Models                                                        | Cost       |
+| ------------- | ------------------------------------------------------------- | ---------- |
+| OpenRouter    | Only `:free` models, pulled live from OpenRouter's catalog    | Free       |
+| Groq          | Free-tier allowlist (llama-3.3-70b-versatile, llama-3.1-8b-instant, …) | Free |
+| DeepSeek      | `deepseek-chat` / `deepseek-reasoner`                         | Paid (yours) |
+| OpenAI        | `gpt-4o-mini` family                                          | Paid (yours) |
 
-To learn more about Next.js, take a look at the following resources:
+> **OpenRouter note:** free (`:free`) models still require a small credit balance
+> (≈$0.01) on your OpenRouter account before they'll respond.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Env fallback
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Keys entered in Settings are primary. As a fallback, these env vars are used when a request
+carries no key: `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`.
+Stripe keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) are only needed if you use the
+`/api/webhook/stripe` route.
 
-## Deploy on Vercel
+## Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js 16 (App Router, Turbopack)
+- SQLite via Prisma (`prisma/dev.db` committed)
+- Tailwind CSS v4
