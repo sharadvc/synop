@@ -67,7 +67,7 @@ export default function DashboardPage() {
 
           <div className="mt-auto pt-6 border-t border-border/50">
              <div className="flex items-center gap-3 px-3">
-                <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "w-8 h-8 rounded-lg" } }} />
+                <UserButton appearance={{ elements: { avatarBox: "w-8 h-8 rounded-lg" } }} />
                 <div className="flex flex-col">
                    <span className="text-sm font-bold text-foreground">{user?.fullName || 'My Account'}</span>
                    <span className="text-xs font-medium text-foreground/50">Manage Profile</span>
@@ -81,7 +81,7 @@ export default function DashboardPage() {
           {/* Mobile Header (Visible only on small screens) */}
           <div className="flex md:hidden items-center justify-between mb-8 pb-4 border-b border-border">
              <div className="font-extrabold text-xl tracking-tight cursor-pointer" onClick={() => router.push('/')}>Gist</div>
-             <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "w-8 h-8 rounded-lg" } }} />
+             <UserButton appearance={{ elements: { avatarBox: "w-8 h-8 rounded-lg" } }} />
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
