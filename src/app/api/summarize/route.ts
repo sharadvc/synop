@@ -49,12 +49,21 @@ function extractJson(raw: string): any {
 
   const start = trimmed.indexOf('{');
   const end = trimmed.lastIndexOf('}');
-  if (start !== -1 && end > start) { try { return JSON.parse(trimmed.slice(start, end + 1)); } catch {} }
+  const core = (start !== -1 && end > start) ? trimmed.slice(start, end + 1) : trimmed;
+  try { return JSON.parse(core); } catch {}
 
-  const fixed = trimmed.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']').replace(/([{,])\s*(\w+)\s*:/g, '$1"$2":');
-  try { return JSON.parse(fixed); } catch {}
+  // Repair common model-output defects: trailing commas, unquoted keys, and
+  // literal line breaks / tabs inside string values (breaks strict JSON).
+  const repair = (s: string) =>
+    s
+      .replace(/[\r\n\t]+/g, ' ')
+      .replace(/,\s*}/g, '}')
+      .replace(/,\s*]/g, ']')
+      .replace(/([{,])\s*(\w+)\s*:/g, '$1"$2":');
+  try { return JSON.parse(repair(core)); } catch {}
+  try { return JSON.parse(repair(trimmed)); } catch {}
 
-  throw new Error(`Failed to parse AI response. Raw start: ${trimmed.substring(0, 150)}`);
+  throw new Error(`Failed to parse AI response. Raw start: ${trimmed.substring(0, 250)}`);
 }
 
 async function getVideoMeta(videoId: string) {
