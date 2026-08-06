@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User } from "lucide-react";
+import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { getDashboardData } from "@/actions/dashboard";
@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [folders, setFolders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -379,95 +380,119 @@ export default function DashboardPage() {
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  const renderSidebarInner = () => (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 mb-8 pl-2 cursor-pointer" onClick={() => router.push('/')}>
+        <img src="/logo.svg" alt="Synop Logo" className="w-8 h-8" />
+        <span className="font-extrabold text-2xl tracking-tight">Synop</span>
+      </div>
+
+      <div className="space-y-1 mb-8">
+        {tabs.map(tab => (
+          <div
+            key={tab.name}
+            onClick={() => { setActiveTab(tab.name); setSidebarOpen(false); }}
+            className={`flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-lg shadow-sm cursor-pointer transition-colors ${
+              activeTab === tab.name
+              ? "text-white bg-primary"
+              : "text-foreground/60 hover:text-foreground hover:bg-accent"
+            }`}
+          >
+            {tab.icon} {tab.name}
+          </div>
+        ))}
+      </div>
+
+      {/* Folders Section */}
+      <div className="mb-8 flex-1 overflow-y-auto">
+        <div className="flex items-center justify-between px-3 mb-4">
+          <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">Folders</span>
+          <button onClick={() => setShowFolderDialog(true)} className="p-1 rounded-lg hover:bg-accent transition-colors">
+            <FolderPlus className="w-4 h-4 text-foreground/50 hover:text-foreground" />
+          </button>
+        </div>
+        <div className="space-y-1">
+          <div
+            onClick={() => { setSelectedFolder(null); setSidebarOpen(false); }}
+            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg cursor-pointer transition-colors ${selectedFolder === null ? 'bg-accent text-foreground' : 'text-foreground/70 hover:bg-accent/50'}`}
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            <span>All Summaries</span>
+          </div>
+          {folders.length === 0 ? (
+            <div className="px-3 text-xs text-foreground/40 font-medium mt-2">No folders yet.</div>
+          ) : (
+            folders.map(folder => (
+              <div
+                key={folder.id}
+                onClick={() => { setSelectedFolder(folder.id); setSidebarOpen(false); }}
+                className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg cursor-pointer group transition-colors ${
+                  selectedFolder === folder.id ? 'bg-accent text-foreground' : 'text-foreground/70 hover:bg-accent/50'
+                }`}
+              >
+                <div className="flex items-center gap-3 truncate">
+                  <div className={`w-2.5 h-2.5 rounded-full ${folder.color === 'gray' ? 'bg-gray-400' : 'bg-primary'}`} />
+                  <span className="truncate">{folder.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-foreground/40">{folder.count}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id, folder.name); }}
+                    className="w-5 h-5 rounded flex items-center justify-center text-foreground/30 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <Trash className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="mt-auto pt-6 border-t border-border/50">
+        <div className="flex items-center gap-3 px-3">
+          <div className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center font-bold text-xs">Me</div>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-foreground">Local User</span>
+            <span className="text-xs font-medium text-foreground/50">Localhost Mode</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-screen bg-background font-sans overflow-hidden">
-       {/* Sidebar */}
-       <div className="w-64 border-r border-border glass flex flex-col p-4 shrink-0 hidden md:flex z-10 animate-appear">
-          <div className="flex items-center gap-2 mb-8 pl-2 cursor-pointer" onClick={() => router.push('/')}>
-            <img src="/logo.svg" alt="Synop Logo" className="w-8 h-8" />
-            <span className="font-extrabold text-2xl tracking-tight">Synop</span>
-          </div>
-          
-          <div className="space-y-1 mb-8">
-              {tabs.map(tab => (
-                <div 
-                   key={tab.name}
-                   onClick={() => setActiveTab(tab.name)}
-                   className={`flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-lg shadow-sm cursor-pointer transition-colors ${
-                      activeTab === tab.name 
-                      ? "text-white bg-primary" 
-                      : "text-foreground/60 hover:text-foreground hover:bg-accent"
-                   }`}
-                >
-                   {tab.icon} {tab.name}
-                </div>
-             ))}
-          </div>
+       {/* Sidebar (desktop) */}
+       <aside className="w-64 border-r border-border glass flex flex-col p-4 shrink-0 hidden md:flex z-10 animate-appear">
+          {renderSidebarInner()}
+       </aside>
 
-          {/* Folders Section */}
-          <div className="mb-8 flex-1 overflow-y-auto">
-             <div className="flex items-center justify-between px-3 mb-4">
-                <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">Folders</span>
-                <button onClick={() => setShowFolderDialog(true)} className="p-1 rounded-lg hover:bg-accent transition-colors">
-                  <FolderPlus className="w-4 h-4 text-foreground/50 hover:text-foreground" />
-                </button>
-             </div>
-             <div className="space-y-1">
-                <div
-                  onClick={() => setSelectedFolder(null)}
-                  className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg cursor-pointer transition-colors ${selectedFolder === null ? 'bg-accent text-foreground' : 'text-foreground/70 hover:bg-accent/50'}`}
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  <span>All Summaries</span>
-                </div>
-                {folders.length === 0 ? (
-                  <div className="px-3 text-xs text-foreground/40 font-medium mt-2">No folders yet.</div>
-                ) : (
-                  folders.map(folder => (
-                    <div
-                      key={folder.id}
-                      onClick={() => setSelectedFolder(folder.id)}
-                      className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg cursor-pointer group transition-colors ${
-                        selectedFolder === folder.id ? 'bg-accent text-foreground' : 'text-foreground/70 hover:bg-accent/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 truncate">
-                        <div className={`w-2.5 h-2.5 rounded-full ${folder.color === 'gray' ? 'bg-gray-400' : 'bg-primary'}`} />
-                        <span className="truncate">{folder.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-foreground/40">{folder.count}</span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id, folder.name); }}
-                          className="w-5 h-5 rounded flex items-center justify-center text-foreground/30 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <Trash className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-             </div>
-          </div>
-
-          <div className="mt-auto pt-6 border-t border-border/50">
-              <div className="flex items-center gap-3 px-3">
-                <div className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center font-bold text-xs">Me</div>
-                <div className="flex flex-col">
-                   <span className="text-sm font-bold text-foreground">Local User</span>
-                   <span className="text-xs font-medium text-foreground/50">Localhost Mode</span>
-                </div>
-             </div>
-          </div>
-       </div>
+       {/* Sidebar (mobile drawer) */}
+       {sidebarOpen && (
+         <div className="fixed inset-0 z-50 md:hidden">
+           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+           <aside className="absolute left-0 top-0 h-full w-64 glass flex flex-col p-4 shadow-2xl animate-appear">
+             <button onClick={() => setSidebarOpen(false)} className="absolute right-3 top-3 p-1.5 rounded-lg text-foreground/50 hover:text-foreground hover:bg-accent transition-colors">
+               <X className="w-4 h-4" />
+             </button>
+             {renderSidebarInner()}
+           </aside>
+         </div>
+       )}
 
        {/* Main Dashboard Panel */}
        <div className="flex-1 bg-background/50 p-6 md:p-12 overflow-y-auto relative">
           {/* Mobile Header (Visible only on small screens) */}
           <div className="flex md:hidden items-center justify-between mb-8 pb-4 border-b border-border animate-rise stagger-1">
-             <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
-                <img src="/logo.svg" alt="Synop Logo" className="w-6 h-6" />
-                <span className="font-extrabold text-xl tracking-tight">Synop</span>
+             <div className="flex items-center gap-3">
+                <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 rounded-lg text-foreground/70 hover:text-foreground hover:bg-accent transition-colors" aria-label="Open menu">
+                   <Menu className="w-5 h-5" />
+                </button>
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
+                   <img src="/logo.svg" alt="Synop Logo" className="w-6 h-6" />
+                   <span className="font-extrabold text-xl tracking-tight">Synop</span>
+                </div>
              </div>
              <div className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center font-bold text-xs">Me</div>
           </div>
