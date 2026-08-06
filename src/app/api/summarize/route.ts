@@ -6,10 +6,7 @@ export const maxDuration = 120;
 
 const summarySchema = z.object({
   executiveSummary: z.string(),
-  keyInsights: z.array(z.string()),
-  actionItems: z.array(z.string()),
   quotes: z.array(z.string()),
-  timestamps: z.array(z.object({ time: z.string(), topic: z.string(), details: z.string() })),
   resources: z.array(z.string()),
   biasAnalysis: z.array(z.string()).optional(),
   frameworks: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
@@ -44,10 +41,7 @@ RULES:
 
 THE PIPELINE:
 - [The Synthesizer] -> "executiveSummary": A massive, dense, multi-paragraph overview capturing the entire thesis, sub-theses, and exact context.
-- [The Structurer] -> "keyInsights": 10-15 highly analytical, dense insights. You MUST explain *why* they matter and include the specific evidence the speaker used.
-- [The Extractor] -> "actionItems": 5-10 specific, highly actionable takeaways for a professional to implement immediately.
 - [The Extractor] -> "quotes": 5-8 verbatim, powerful quotes capturing essence, especially controversial or highly profound statements.
-- [The Structurer] -> "timestamps": Exhaustive logical chapters (MM:SS, topic title, 3-5 sentence deep summary). You must break the video down extensively.
 - [The Extractor] -> "resources": Any books, tools, websites, scientific papers, or historical events mentioned.
 - [The Critique] -> "biasAnalysis": 3-5 points identifying any underlying biases, logical fallacies, or unproven assumptions the speaker relies on. Challenge the speaker.
 - [The Extractor] -> "frameworks": Extract ALL mental models, frameworks, or step-by-step systems discussed (provide "name" and "description").
@@ -58,10 +52,7 @@ THE PIPELINE:
 JSON SCHEMA:
 {
   "executiveSummary": "...",
-  "keyInsights": ["...", "..."],
-  "actionItems": ["...", "..."],
   "quotes": ["...", "..."],
-  "timestamps": [{"time": "MM:SS", "topic": "...", "details": "..."}],
   "resources": ["...", "..."],
   "biasAnalysis": ["...", "..."],
   "frameworks": [{"name": "...", "description": "..."}],
@@ -272,10 +263,7 @@ export async function POST(req: Request) {
          notes: existingSummary.notes || null,
          summary: {
             executiveSummary: existingSummary.executiveSummary,
-            keyInsights: JSON.parse(existingSummary.keyInsights),
-            actionItems: JSON.parse(existingSummary.actionItems),
             quotes: JSON.parse(existingSummary.quotes),
-            timestamps: JSON.parse(existingSummary.timestamps),
             resources: JSON.parse(existingSummary.resources),
             biasAnalysis: existingSummary.biasAnalysis ? JSON.parse(existingSummary.biasAnalysis) : undefined,
             frameworks: existingSummary.frameworks ? JSON.parse(existingSummary.frameworks) : undefined,
@@ -312,10 +300,7 @@ export async function POST(req: Request) {
             channel: meta?.author_name || "Unknown Channel",
             duration: "TBD",
             executiveSummary: summary.executiveSummary,
-            keyInsights: JSON.stringify(summary.keyInsights),
-            actionItems: JSON.stringify(summary.actionItems),
             quotes: JSON.stringify(summary.quotes),
-            timestamps: JSON.stringify(summary.timestamps || []),
             resources: JSON.stringify(summary.resources || []),
             biasAnalysis: JSON.stringify(summary.biasAnalysis || []),
             frameworks: JSON.stringify(summary.frameworks || []),

@@ -19,18 +19,12 @@ const MermaidGraph = dynamic(() => import('@/components/MermaidGraph'), { ssr: f
 
 interface SummaryData {
   executiveSummary: string;
-  keyInsights: string[];
-  actionItems: string[];
   quotes: string[];
-  timestamps: { time: string; topic: string; details: string }[];
   resources: string[];
   biasAnalysis?: string[];
   frameworks?: { name: string; description: string }[];
   entities?: { type: string; name: string }[];
   mindMap?: string;
-  blogPost?: string;
-  twitterThread?: string;
-  linkedinPost?: string;
   verdict: string;
 }
 
@@ -66,17 +60,13 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("insights");
-  const [repurposeContent, setRepurposeContent] = useState<{ blogPost: string; twitterThread: string; linkedinPost: string } | null>(null);
-  const [isRepurposing, setIsRepurposing] = useState(false);
+  const [activeTab, setActiveTab] = useState("mindmap");
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [exportingNotion, setExportingNotion] = useState(false);
   const [notionResult, setNotionResult] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
-  // Do Next (actionable tasks)
-  const [doneTasks, setDoneTasks] = useState<Set<number>>(new Set());
   // Study Mode (flashcards + quiz)
   const [studyMode, setStudyMode] = useState<'cards' | 'quiz'>('cards');
   const [cardIdx, setCardIdx] = useState(0);
@@ -90,12 +80,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [audioProgress, setAudioProgress] = useState<string>('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
-
-  // Clips state
-  const [clips, setClips] = useState<any[] | null>(null);
-  const [isGeneratingClips, setIsGeneratingClips] = useState(false);
-  const [renderingClips, setRenderingClips] = useState<{ [key: number]: boolean }>({});
-  const [renderedVideos, setRenderedVideos] = useState<{ [key: number]: string }>({});
 
   // YouTube Player State
   const [youtubePlayer, setYoutubePlayer] = useState<any>(null);
@@ -168,17 +152,17 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     if (!data?.summary) return "";
     const s = data.summary;
     let md = `# ${data.meta?.title || 'Summary'}\n\n## Executive Summary\n${s.executiveSummary || ''}\n\n`;
-    if (s.keyInsights && Array.isArray(s.keyInsights)) {
-      md += `## Key Insights\n${s.keyInsights.map(i => `- ${i}`).join('\n')}\n\n`;
-    }
-    if (s.actionItems && Array.isArray(s.actionItems)) {
-      md += `## Action Items\n${s.actionItems.map(i => `- [ ] ${i}`).join('\n')}\n\n`;
-    }
     if (s.quotes && Array.isArray(s.quotes)) {
       md += `## Quotes\n${s.quotes.map(q => `> ${q}`).join('\n\n')}\n\n`;
     }
-    if (s.timestamps && Array.isArray(s.timestamps)) {
-      md += `## Timestamps\n${s.timestamps.map(t => `- **${t.time}**: ${t.topic} - ${t.details}`).join('\n')}\n\n`;
+    if (s.resources && Array.isArray(s.resources)) {
+      md += `## Resources\n${s.resources.map(r => `- ${r}`).join('\n')}\n\n`;
+    }
+    if (s.frameworks && Array.isArray(s.frameworks)) {
+      md += `## Frameworks\n${s.frameworks.map(f => `- **${f.name}**: ${f.description}`).join('\n')}\n\n`;
+    }
+    if (s.biasAnalysis && Array.isArray(s.biasAnalysis)) {
+      md += `## Bias & Critique\n${s.biasAnalysis.map(b => `- ${b}`).join('\n')}\n\n`;
     }
     md += `## Verdict\n${s.verdict || ''}`;
     return md;
@@ -229,23 +213,9 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Executive Summary</h2>`;
         bodyHtml += `<p style="font-size:14px;line-height:1.7;margin-bottom:20px">${esc(s.executiveSummary)}</p>`;
       }
-      if (s.keyInsights && s.keyInsights.length > 0) {
-        bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Key Insights</h2>`;
-        bodyHtml += `<ul style="padding-left:20px">${renderList(s.keyInsights)}</ul>`;
-      }
-      if (s.actionItems && s.actionItems.length > 0) {
-        bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Action Items</h2>`;
-        bodyHtml += `<ul style="padding-left:20px;list-style:none">${s.actionItems.map(i => `<li style="margin-bottom:6px">☐ ${esc(i)}</li>`).join('')}</ul>`;
-      }
       if (s.quotes && s.quotes.length > 0) {
         bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Quotes</h2>`;
         bodyHtml += s.quotes.map(q => `<blockquote style="font-size:14px;line-height:1.6;color:#444;border-left:3px solid #888;padding:10px 16px;margin:10px 0;background:#f5f5f5">${esc(q)}</blockquote>`).join('');
-      }
-      if (s.timestamps && s.timestamps.length > 0) {
-        bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Timestamps</h2>`;
-        bodyHtml += `<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px"><thead><tr style="background:#f0f0f0"><th style="text-align:left;padding:8px;border:1px solid #ddd">Time</th><th style="text-align:left;padding:8px;border:1px solid #ddd">Topic</th><th style="text-align:left;padding:8px;border:1px solid #ddd">Details</th></tr></thead><tbody>`;
-        bodyHtml += s.timestamps.map(t => `<tr><td style="padding:8px;border:1px solid #ddd">${esc(t.time || '')}</td><td style="padding:8px;border:1px solid #ddd">${esc(t.topic || '')}</td><td style="padding:8px;border:1px solid #ddd">${esc(t.details || '')}</td></tr>`).join('');
-        bodyHtml += `</tbody></table>`;
       }
       if (s.resources && s.resources.length > 0) {
         bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Resources</h2>`;
@@ -266,18 +236,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       if (s.entities && s.entities.length > 0) {
         bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Entities</h2>`;
         bodyHtml += `<ul style="padding-left:20px">${s.entities.map(e => `<li style="margin-bottom:4px"><strong>${esc(e.type || '')}:</strong> ${esc(e.name || '')}</li>`).join('')}</ul>`;
-      }
-      if (s.blogPost) {
-        bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Blog Post</h2>`;
-        bodyHtml += `<p style="font-size:14px;line-height:1.7;margin-bottom:20px;white-space:pre-wrap">${esc(s.blogPost)}</p>`;
-      }
-      if (s.twitterThread) {
-        bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Twitter Thread</h2>`;
-        bodyHtml += `<p style="font-size:14px;line-height:1.7;margin-bottom:20px;white-space:pre-wrap">${esc(s.twitterThread)}</p>`;
-      }
-      if (s.linkedinPost) {
-        bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">LinkedIn Post</h2>`;
-        bodyHtml += `<p style="font-size:14px;line-height:1.7;margin-bottom:20px;white-space:pre-wrap">${esc(s.linkedinPost)}</p>`;
       }
       bodyHtml += `<hr style="border:none;border-top:1px solid #ddd;margin:24px 0" />`;
       bodyHtml += `<p style="font-size:11px;color:#999">Generated by Synop on ${new Date().toLocaleString()}</p>`;
@@ -315,89 +273,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       URL.revokeObjectURL(url);
     } finally {
       setIsExportingPDF(false);
-    }
-  };
-
-  const handleRepurpose = async () => {
-    if (!id || isRepurposing) return;
-    setIsRepurposing(true);
-    try {
-      const res = await fetch('/api/repurpose', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-gemini-key': localStorage.getItem('gemini_key') || '',
-          'x-groq-key': localStorage.getItem('groq_key') || '',
-          'x-openrouter-key': localStorage.getItem('openrouter_key') || ''
-        },
-        body: JSON.stringify({ videoId: id, language })
-      });
-      const json = await res.json();
-      if (json.blogPost || json.twitterThread || json.linkedinPost) {
-        setRepurposeContent(json);
-      } else if (json.error) {
-        showToast('Marketing assets error: ' + json.error);
-      } else {
-        showToast('Failed to generate assets. Check your API key in Settings.');
-      }
-    } catch (err: any) {
-      showToast(err.message || 'Failed to generate marketing assets.');
-    } finally {
-      setIsRepurposing(false);
-    }
-  };
-
-  const handleGenerateClips = async () => {
-    if (clips) return;
-    setIsGeneratingClips(true);
-    try {
-      const res = await fetch('/api/clips', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-gemini-key': localStorage.getItem('gemini_key') || '',
-          'x-groq-key': localStorage.getItem('groq_key') || '',
-        },
-        body: JSON.stringify({ videoUrl: `https://youtube.com/watch?v=${id}`, language })
-      });
-      const json = await res.json();
-      if (json.clips) {
-        setClips(json.clips);
-      } else if (json.error) {
-        alert(`Clips Generation Failed: ${json.error}`);
-      } else {
-        alert("Clips Generation Failed: Invalid response format from AI.");
-      }
-    } catch (error: any) {
-      console.error(error);
-      alert(error.message);
-    } finally {
-      setIsGeneratingClips(false);
-    }
-  };
-
-  const handleRenderReel = async (clip: any, index: number) => {
-    try {
-      setRenderingClips(prev => ({ ...prev, [index]: true }));
-      const res = await fetch('/api/render', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          videoId: id,
-          timeRange: clip.timeRange,
-          script: clip.script,
-          hook: clip.hook
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to render video');
-      
-      setRenderedVideos(prev => ({ ...prev, [index]: data.url }));
-    } catch (error: any) {
-      console.error("Render failed", error);
-      alert("Render failed: " + error.message);
-    } finally {
-      setRenderingClips(prev => ({ ...prev, [index]: false }));
     }
   };
 
@@ -510,10 +385,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         if (j.error) setError(j.error); 
         else {
           setData(j);
-          // Hydrate previously generated marketing assets from DB on page load
-          if (j.summary?.blogPost || j.summary?.twitterThread || j.summary?.linkedinPost) {
-            setRepurposeContent({ blogPost: j.summary.blogPost, twitterThread: j.summary.twitterThread, linkedinPost: j.summary.linkedinPost });
-          }
         }
       })
       .catch(e => setError(e.message))
@@ -552,37 +423,34 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const summary = data?.summary;
   const transcript = data?.transcript;
 
-  // Study Mode deck (flashcards) + quiz, built once per summary.
+  // Study Mode deck (flashcards) + quiz, built once per summary from
+  // quotes, frameworks, and bias/critique (Phase 2 will also feed topic clusters).
   const studyDeck = useMemo(() => {
     if (!summary) return [] as { front: string; back: string }[];
     return [
-      ...summary.timestamps.map(ts => ({ front: ts.topic, back: `${ts.details}\n\n${ts.time}` })),
-      ...summary.keyInsights.map((k, i) => ({ front: `Key Insight ${i + 1}`, back: k })),
+      ...(summary.frameworks ?? []).map(f => ({ front: f.name, back: f.description })),
+      ...summary.quotes.map((q, i) => ({ front: `Quote ${i + 1}`, back: q })),
+      ...(summary.biasAnalysis ?? []).map((b, i) => ({ front: `Critique ${i + 1}`, back: b })),
     ];
   }, [summary]);
 
   const studyQuiz = useMemo(() => {
     if (!summary) return [] as { question: string; correct: string; options: string[] }[];
-    return summary.timestamps
-      .map((ts, i) => {
-        const correct = ts.topic;
-        const others = summary.timestamps.filter((_, j) => j !== i).map(t => t.topic).slice(0, 4);
-        return { question: ts.details, correct, options: [correct, ...others].sort(() => Math.random() - 0.5) };
+    const fw = summary.frameworks ?? [];
+    return fw
+      .map((f, i) => {
+        const others = fw.filter((_, j) => j !== i).map(x => x.name).slice(0, 4);
+        return { question: f.description, correct: f.name, options: [f.name, ...others].sort(() => Math.random() - 0.5) };
       })
       .filter(q => q.options.length >= 2);
   }, [summary]);
 
   const tabs = [
-    { id: "insights", label: "Key Insights", icon: <BrainCircuit className="w-4 h-4" strokeWidth={1.5} /> },
     { id: "mindmap", label: "Knowledge Graph", icon: <Network className="w-4 h-4" strokeWidth={1.5} /> },
     { id: "frameworks", label: "Frameworks", icon: <Boxes className="w-4 h-4" strokeWidth={1.5} /> },
     { id: "bias", label: "Bias & Critique", icon: <Scale className="w-4 h-4" strokeWidth={1.5} /> },
-    { id: "action", label: "Do Next", icon: <ListTodo className="w-4 h-4" strokeWidth={1.5} /> },
-    { id: "timestamps", label: "Chapters", icon: <Clock className="w-4 h-4" strokeWidth={1.5} /> },
-    { id: "repurpose", label: "Repurpose", icon: <PenTool className="w-4 h-4" strokeWidth={1.5} /> },
     { id: "quotes", label: "Quotes", icon: <Quote className="w-4 h-4" strokeWidth={1.5} /> },
-    { id: "notes", label: "Study Mode", icon: <GraduationCap className="w-4 h-4" strokeWidth={1.5} /> },
-    { id: "clips", label: "Viral Shorts", icon: <Target className="w-4 h-4" strokeWidth={1.5} /> }
+    { id: "notes", label: "Study Mode", icon: <GraduationCap className="w-4 h-4" strokeWidth={1.5} /> }
   ];
 
   return (
@@ -767,19 +635,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
 
                   {/* Tab Content */}
                   <div className="min-h-[400px] animate-rise stagger-5">
-                    {activeTab === "insights" && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {summary.keyInsights.map((insight, i) => (
-                          <div key={i} className="flex gap-5 p-6 md:p-8 glass border border-border/50 rounded-3xl shadow-sm items-start hover:shadow-xl hover:-translate-y-1 transition-all">
-                            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 border border-primary/20">
-                               <span className="text-primary font-bold">{i + 1}</span>
-                            </div>
-                            <p className="text-[16px] font-medium leading-relaxed text-foreground/90">{insight}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
                     {activeTab === "mindmap" && summary.mindMap && (
                       <div className="w-full flex flex-col gap-4">
                         <div className="bg-foreground text-background px-4 py-2 rounded-xl text-xs font-bold uppercase w-fit tracking-wide shadow-md">AI Knowledge Graph</div>
@@ -811,73 +666,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                             <p className="text-[16px] font-medium leading-relaxed text-foreground/90">{bias}</p>
                           </div>
                         ))}
-                      </div>
-                    )}
-
-                    {activeTab === "action" && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between gap-4 flex-wrap">
-                          <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-[0.2em] flex items-center gap-3"><ListTodo className="w-4 h-4" strokeWidth={1.5} /> Do Next — tick off, then ship</h3>
-                          <button
-                            onClick={async () => {
-                              const text = summary.actionItems.map((item, i) => `${doneTasks.has(i) ? '[x]' : '[ ]'} ${item}`).join('\n');
-                              await navigator.clipboard.writeText(text);
-                              showToast('Tasks copied!');
-                            }}
-                            className="h-9 px-4 bg-foreground text-background rounded-xl text-xs font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
-                          >
-                            <Copy className="w-3 h-3" /> Copy Tasks
-                          </button>
-                        </div>
-                        {summary.actionItems.map((item, i) => (
-                          <label key={i} className={`flex gap-5 p-6 md:p-8 glass border border-border/50 rounded-3xl shadow-sm items-start hover:shadow-md transition-all cursor-pointer ${doneTasks.has(i) ? 'opacity-60' : ''}`}>
-                            <input
-                              type="checkbox"
-                              checked={doneTasks.has(i)}
-                              onChange={() => {
-                                const next = new Set(doneTasks);
-                                if (next.has(i)) next.delete(i); else next.add(i);
-                                setDoneTasks(next);
-                              }}
-                              className="mt-1 w-5 h-5 accent-green-500 shrink-0"
-                            />
-                            <p className={`text-[16px] font-medium leading-relaxed text-foreground/90 ${doneTasks.has(i) ? 'line-through' : ''}`}>{item}</p>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-
-                    {activeTab === "timestamps" && (
-                      <div className="space-y-4">
-                        {summary.timestamps.map((ts, i) => {
-                          const parts = ts.time.split(':').map(Number);
-                          const startSeconds = parts.length === 3 ? parts[0] * 3600 + parts[1] * 60 + parts[2] : parts[0] * 60 + parts[1];
-                          
-                          const nextParts = summary.timestamps[i+1]?.time.split(':').map(Number);
-                          const nextSeconds = nextParts ? (nextParts.length === 3 ? nextParts[0] * 3600 + nextParts[1] * 60 + nextParts[2] : nextParts[0] * 60 + nextParts[1]) : Infinity;
-
-                          const isActive = currentVideoTime >= startSeconds && currentVideoTime < nextSeconds;
-                          
-                          // Auto-scroll mechanism could be added here, but simple visual active state is sufficient for now without fighting the user's scroll
-                          
-                          return (
-                            <div key={i} className={`flex flex-col md:flex-row gap-6 p-6 md:p-8 glass border rounded-3xl transition-all duration-300 ${isActive ? 'ring-2 ring-primary bg-primary/10 border-primary/50 shadow-lg scale-[1.02] -translate-y-1' : 'border-border/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5'}`}>
-                              <div className="shrink-0 flex md:flex-col items-center md:items-start gap-3">
-                                 <button 
-                                   onClick={() => seekTo(ts.time)}
-                                   className={`inline-flex items-center justify-center px-4 py-1.5 rounded-xl font-bold font-mono text-[13px] border transition-colors shadow-sm cursor-pointer ${isActive ? 'bg-primary text-white border-primary' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white border-primary/20'}`}
-                                 >
-                                    <Play className="w-3 h-3 mr-2 inline" /> {ts.time}
-                                 </button>
-                                 {isActive && <span className="text-[10px] font-bold uppercase tracking-widest text-primary animate-pulse flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-primary inline-block"></span> Now Playing</span>}
-                              </div>
-                              <div>
-                                 <h3 className="text-xl font-bold text-foreground mb-3 font-serif">{ts.topic}</h3>
-                                 <p className="text-[15px] font-medium text-foreground/70 leading-relaxed">{ts.details}</p>
-                              </div>
-                            </div>
-                          )
-                        })}
                       </div>
                     )}
 
@@ -938,10 +726,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                             >Quiz</button>
                             <button
                               onClick={async () => {
-                                const lines = [
-                                  ...summary.timestamps.map(ts => `${ts.topic}\t${ts.details} (${ts.time})`),
-                                  ...summary.keyInsights.map((k, i) => `Key Insight ${i + 1}\t${k}`),
-                                ];
+                                const lines = studyDeck.map(d => `${d.front}\t${d.back}`);
                                 await navigator.clipboard.writeText(lines.join('\n'));
                                 showToast('Anki deck copied!');
                               }}
@@ -1021,148 +806,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                       </div>
                     )}
 
-                    {activeTab === "clips" && (
-                      <div className="w-full flex flex-col gap-6 items-center">
-                        {!clips && !isGeneratingClips && (
-                          <div className="text-center p-12 glass border border-border/50 rounded-3xl max-w-lg w-full">
-                            <Target className="w-12 h-12 text-primary mx-auto mb-4" />
-                            <h3 className="text-xl font-bold mb-2">The Viral Shorts Engine</h3>
-                            <p className="text-sm text-foreground/60 mb-6">AI will analyze the transcript to extract the 3 highest-retention 60-second clips and generate a hook and B-roll script for TikTok/Reels.</p>
-                            <button onClick={handleGenerateClips} className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-primary/20 transition-all">
-                               Generate Viral Clips
-                            </button>
-                          </div>
-                        )}
-                        {isGeneratingClips && (
-                          <div className="text-center p-12 glass rounded-3xl">
-                            <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
-                            <p className="text-foreground/60 font-medium">Extracting peak retention moments...</p>
-                          </div>
-                        )}
-                        {clips && (
-                          <div className="w-full space-y-6">
-                            {clips.map((clip, i) => (
-                              <div key={i} className="glass p-8 rounded-3xl border border-border/50 shadow-sm relative overflow-hidden group">
-                                <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
-                                <div className="flex justify-between items-start mb-6">
-                                   <div>
-                                     <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 px-3 py-1 rounded-full">Clip {i+1}</span>
-                                     <h3 className="text-2xl font-bold mt-3 font-serif">{clip.hook}</h3>
-                                   </div>
-                                   <div className="flex gap-2">
-                                     {renderedVideos[i] ? (
-                                       <a 
-                                         href={renderedVideos[i]} 
-                                         download
-                                         className="bg-green-500/10 hover:bg-green-500 text-green-600 hover:text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors border border-green-500/20"
-                                       >
-                                         <Download className="w-4 h-4" /> Download .mp4
-                                       </a>
-                                     ) : (
-                                       <button 
-                                         onClick={() => handleRenderReel(clip, i)}
-                                         disabled={renderingClips[i]}
-                                         className="bg-foreground hover:bg-foreground/90 text-background px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
-                                       >
-                                         {renderingClips[i] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
-                                         {renderingClips[i] ? "Rendering..." : "Render Reel (.mp4)"}
-                                       </button>
-                                     )}
-                                     <button 
-                                       onClick={() => seekTo(clip.timeRange.split('-')[0].trim())}
-                                       className="bg-primary/10 hover:bg-primary text-primary hover:text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors"
-                                     >
-                                       <Play className="w-4 h-4" /> {clip.timeRange}
-                                     </button>
-                                   </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                   <div className="bg-background/50 p-5 rounded-2xl border border-border/30">
-                                      <p className="text-xs font-bold uppercase tracking-widest text-foreground/40 mb-3"><PenTool className="w-3 h-3 inline mr-1" /> Script</p>
-                                      <p className="text-[15px] leading-relaxed font-medium text-foreground/80">{clip.script}</p>
-                                   </div>
-                                   <div className="bg-primary/5 p-5 rounded-2xl border border-primary/20">
-                                      <p className="text-xs font-bold uppercase tracking-widest text-primary/60 mb-3 text-primary"><Target className="w-3 h-3 inline mr-1" /> Editor's B-Roll</p>
-                                      <p className="text-[15px] leading-relaxed font-medium text-primary/80 italic">{clip.bRoll}</p>
-                                   </div>
-                                </div>
-                                {renderedVideos[i] && (
-                                  <div className="mt-6 pt-6 border-t border-border/50">
-                                    <p className="text-xs font-bold uppercase tracking-widest text-foreground/40 mb-4 flex items-center gap-2"><Video className="w-4 h-4" /> Final Rendered Reel</p>
-                                    <video 
-                                      src={renderedVideos[i]} 
-                                      controls 
-                                      className="w-full max-w-[300px] h-[533px] rounded-2xl mx-auto shadow-2xl bg-black object-cover"
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {activeTab === "repurpose" && (
-                      <div className="space-y-12">
-                        {!repurposeContent ? (
-                          <div className="flex flex-col items-center justify-center p-16 glass border border-border/50 rounded-[2rem] text-center">
-                             <div className="w-20 h-20 rounded-3xl bg-foreground/5 flex items-center justify-center mb-8">
-                                <PenTool className="w-10 h-10 text-foreground/50" />
-                             </div>
-                             <h3 className="text-2xl font-bold tracking-tight text-foreground mb-4">Content Engine</h3>
-                             <p className="text-foreground/60 text-[15px] font-medium max-w-md mb-10 leading-relaxed">
-                                Transform this video's insights into a viral Twitter thread, an SEO-optimized blog post, and a professional LinkedIn post automatically.
-                             </p>
-                             <button
-                                onClick={handleRepurpose}
-                                disabled={isRepurposing}
-                                className="group relative overflow-hidden bg-foreground text-background px-8 py-4 rounded-xl font-bold text-sm tracking-wide disabled:opacity-50 transition-all hover:scale-105"
-                             >
-                               {isRepurposing ? (
-                                 <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Generating...</span>
-                               ) : (
-                                 "Generate Marketing Assets"
-                               )}
-                             </button>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                            <div className="flex justify-end xl:col-span-2">
-                              <button
-                                onClick={handleRepurpose}
-                                disabled={isRepurposing}
-                                className="h-9 px-4 glass border border-border/50 rounded-xl text-sm font-bold text-foreground/70 hover:bg-accent transition-all flex items-center gap-2 disabled:opacity-50"
-                              >
-                                {isRepurposing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Regenerating...</> : <><Loader2 className="w-3.5 h-3.5" /> Regenerate</>}
-                              </button>
-                            </div>
-                            {/* Blog Post */}
-                            <div className="glass border border-border/50 rounded-[2.5rem] p-8 shadow-sm xl:col-span-2">
-                               <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-[0.2em] mb-8 flex items-center gap-3"><FileText className="w-4 h-4" /> SEO Blog Post</h3>
-                               <div className="prose prose-invert max-w-none prose-headings:font-serif prose-headings:font-bold prose-p:leading-relaxed prose-p:text-foreground/80 prose-li:text-foreground/80">
-                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{repurposeContent?.blogPost || ''}</ReactMarkdown>
-                               </div>
-                            </div>
-                            
-                            {/* Twitter Thread */}
-                            <div className="glass border border-border/50 rounded-[2.5rem] p-8 shadow-sm">
-                               <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-[0.2em] mb-8 flex items-center gap-3"><Share2 className="w-4 h-4" /> Twitter Thread</h3>
-                               <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-p:text-foreground/90 whitespace-pre-wrap">
-                                 {repurposeContent?.twitterThread || ''}
-                               </div>
-                            </div>
-
-                            {/* LinkedIn Post */}
-                            <div className="glass border border-border/50 rounded-[2.5rem] p-8 shadow-sm">
-                               <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-[0.2em] mb-8 flex items-center gap-3"><Target className="w-4 h-4" /> LinkedIn Post</h3>
-                               <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-p:text-foreground/90 whitespace-pre-wrap">
-                                 {repurposeContent?.linkedinPost || ''}
-                               </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </>
               )}

@@ -16,10 +16,7 @@ model Summary {
   duration         String
   status           String   @default("Completed")
   executiveSummary String
-  keyInsights      String
-  actionItems      String
   quotes           String
-  timestamps       String
   resources        String
   verdict          String
   biasAnalysis     String?
@@ -29,9 +26,6 @@ model Summary {
   folderId         String?
   folder           Folder?  @relation(fields: [folderId], references: [id])
   tags             Tag[]
-  blogPost         String?
-  twitterThread    String?
-  linkedinPost     String?
   notes            String?
   transcript       String?
   createdAt        DateTime @default(now())

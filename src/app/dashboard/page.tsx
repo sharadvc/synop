@@ -196,38 +196,11 @@ export default function DashboardPage() {
       lines.push(``);
     }
 
-    const keyInsights = parseList(summary.keyInsights);
-    if (keyInsights.length > 0) {
-      lines.push(`## Key Insights`);
-      lines.push(``);
-      keyInsights.forEach((k: string) => { lines.push(`- ${k}`); });
-      lines.push(``);
-    }
-
-    const actionItems = parseList(summary.actionItems);
-    if (actionItems.length > 0) {
-      lines.push(`## Action Items`);
-      lines.push(``);
-      actionItems.forEach((a: string) => { lines.push(`- [ ] ${a}`); });
-      lines.push(``);
-    }
-
     const quotes = parseList(summary.quotes);
     if (quotes.length > 0) {
       lines.push(`## Key Quotes`);
       lines.push(``);
       quotes.forEach((q: string) => { lines.push(`> ${q}`); lines.push(``); });
-    }
-
-    let timestamps: any[] = [];
-    try { timestamps = JSON.parse(summary.timestamps || '[]'); } catch {}
-    if (timestamps.length > 0) {
-      lines.push(`## Timestamps`);
-      lines.push(``);
-      lines.push(`| Time | Topic | Details |`);
-      lines.push(`|------|-------|---------|`);
-      timestamps.forEach((t: any) => { lines.push(`| ${t.time || ''} | ${t.topic || ''} | ${t.details || ''} |`); });
-      lines.push(``);
     }
 
     const resources = parseList(summary.resources);
@@ -272,27 +245,6 @@ export default function DashboardPage() {
       lines.push(`## Verdict`);
       lines.push(``);
       lines.push(summary.verdict);
-      lines.push(``);
-    }
-
-    if (summary.blogPost) {
-      lines.push(`## Blog Post`);
-      lines.push(``);
-      lines.push(summary.blogPost);
-      lines.push(``);
-    }
-
-    if (summary.twitterThread) {
-      lines.push(`## Twitter Thread`);
-      lines.push(``);
-      lines.push(summary.twitterThread);
-      lines.push(``);
-    }
-
-    if (summary.linkedinPost) {
-      lines.push(`## LinkedIn Post`);
-      lines.push(``);
-      lines.push(summary.linkedinPost);
       lines.push(``);
     }
 

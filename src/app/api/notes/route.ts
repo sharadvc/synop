@@ -147,9 +147,9 @@ function generateFallbackNotes(summary: any): string {
   }
   lines.push('');
   lines.push('NOTES:');
-  const insights = (() => { try { return JSON.parse(summary.keyInsights || '[]'); } catch { return []; } })();
-  if (insights.length > 0) {
-    insights.forEach((i: string) => lines.push('- ' + i));
+  const frameworks = (() => { try { return JSON.parse(summary.frameworks || '[]'); } catch { return []; } })();
+  if (frameworks.length > 0) {
+    frameworks.forEach((f: any) => lines.push('- ' + (f.name || '') + ': ' + (f.description || '')));
     lines.push('');
   }
   const quotes = (() => { try { return JSON.parse(summary.quotes || '[]'); } catch { return []; } })();
@@ -164,8 +164,8 @@ function generateFallbackNotes(summary: any): string {
   lines.push('');
   lines.push('TOP TAKEAWAYS:');
   if (summary.verdict) lines.push('- ' + summary.verdict);
-  const actionItems = (() => { try { return JSON.parse(summary.actionItems || '[]'); } catch { return []; } })();
-  actionItems.slice(0, 5).forEach((a: string) => lines.push('- ' + a));
+  const critique = (() => { try { return JSON.parse(summary.biasAnalysis || '[]'); } catch { return []; } })();
+  critique.slice(0, 5).forEach((c: string) => lines.push('- ' + c));
   lines.push('');
   lines.push('QUESTIONS TO REVIEW:');
   lines.push('- Review the key concepts from this lecture');
@@ -213,9 +213,9 @@ export async function POST(req: Request) {
        title: summary.title, channel: summary.channel,
        transcript: summary.transcript,
        executiveSummary: summary.executiveSummary,
-       keyInsights: summary.keyInsights, quotes: summary.quotes,
-       actionItems: summary.actionItems, verdict: summary.verdict,
-       timestamps: summary.timestamps,
+       quotes: summary.quotes, verdict: summary.verdict,
+       frameworks: summary.frameworks, biasAnalysis: summary.biasAnalysis,
+       entities: summary.entities,
     });
 
     const customKeys = {

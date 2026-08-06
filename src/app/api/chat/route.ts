@@ -42,7 +42,7 @@ When answering:
 ${summaries.map(s => `
 [Title: ${s.title}] (Channel: ${s.channel})
 Executive Summary: ${s.executiveSummary}
-Key Insights: ${s.keyInsights}
+Frameworks: ${s.frameworks ?? ''}
 `).join('\n')}
 `;
     } else {
@@ -55,7 +55,7 @@ You have been provided with a rich summary as context.
 
 When answering:
 - Be direct, conversational, and highly accurate.
-- IMPORTANT CITATION RULE: Whenever you state a specific fact, quote, or point from the video, you MUST include a deep citation to the exact timestamp using brackets, e.g., [12:30]. Use the Chapters/Timestamps array to find the closest time.
+- Ground every specific fact, quote, or point you state in the provided summary context below. Do not invent details not present in it.
 - Format your response in clean Markdown.
 - IMPORTANT: You MUST answer in ${language.toUpperCase()}.
 
@@ -63,9 +63,9 @@ When answering:
 Title: ${summary.title}
 Channel: ${summary.channel}
 Executive Summary: ${summary.executiveSummary}
-Key Insights: ${summary.keyInsights}
-Chapters/Timestamps: ${JSON.stringify(summary.timestamps)}
-Action Items: ${summary.actionItems}
+Bias & Critique: ${summary.biasAnalysis ?? ''}
+Frameworks: ${summary.frameworks ?? ''}
+Entities: ${summary.entities ?? ''}
 Quotes: ${summary.quotes}
 Verdict: ${summary.verdict}
 `;

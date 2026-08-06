@@ -19,10 +19,10 @@ export async function POST(req: Request) {
     const summary = await db.summary.findFirst({ where: { videoId } });
     if (!summary) return NextResponse.json({ error: 'Summary not found' }, { status: 404 });
 
-    const keyInsights = JSON.parse(summary.keyInsights || '[]');
-    const actionItems = JSON.parse(summary.actionItems || '[]');
+    const frameworks = JSON.parse(summary.frameworks || '[]');
+    const biasAnalysis = JSON.parse(summary.biasAnalysis || '[]');
     const quotes = JSON.parse(summary.quotes || '[]');
-    const timestamps = JSON.parse(summary.timestamps || '[]');
+    const resources = JSON.parse(summary.resources || '[]');
 
     const body = [
       {
@@ -48,22 +48,22 @@ export async function POST(req: Request) {
       {
         object: 'block',
         type: 'heading_2',
-        heading_2: { rich_text: [{ type: 'text', text: { content: 'Key Insights' } }] },
+        heading_2: { rich_text: [{ type: 'text', text: { content: 'Frameworks' } }] },
       },
-      ...keyInsights.map((insight: string) => ({
+      ...frameworks.map((f: { name: string; description: string }) => ({
         object: 'block' as const,
         type: 'bulleted_list_item' as const,
-        bulleted_list_item: { rich_text: [{ type: 'text' as const, text: { content: insight } }] },
+        bulleted_list_item: { rich_text: [{ type: 'text' as const, text: { content: `${f.name}: ${f.description}` } }] },
       })),
       {
         object: 'block',
         type: 'heading_2',
-        heading_2: { rich_text: [{ type: 'text', text: { content: 'Action Items' } }] },
+        heading_2: { rich_text: [{ type: 'text', text: { content: 'Bias & Critique' } }] },
       },
-      ...actionItems.map((item: string) => ({
+      ...biasAnalysis.map((b: string) => ({
         object: 'block' as const,
-        type: 'to_do' as const,
-        to_do: { rich_text: [{ type: 'text' as const, text: { content: item } }], checked: false },
+        type: 'bulleted_list_item' as const,
+        bulleted_list_item: { rich_text: [{ type: 'text' as const, text: { content: b } }] },
       })),
       {
         object: 'block',
@@ -78,15 +78,13 @@ export async function POST(req: Request) {
       {
         object: 'block',
         type: 'heading_2',
-        heading_2: { rich_text: [{ type: 'text', text: { content: 'Timestamps' } }] },
+        heading_2: { rich_text: [{ type: 'text', text: { content: 'Resources' } }] },
       },
-      ...timestamps.map((ts: { time: string; topic: string; details: string }) => ({
+      ...resources.map((res: string) => ({
         object: 'block' as const,
-        type: 'numbered_list_item' as const,
-        numbered_list_item: {
-          rich_text: [
-            { type: 'text' as const, text: { content: `[${ts.time}] ${ts.topic} — ${ts.details}` } },
-          ],
+        type: 'bulleted_list_item' as const,
+        bulleted_list_item: {
+          rich_text: [{ type: 'text' as const, text: { content: res } }],
         },
       })),
       {

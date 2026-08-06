@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
-import { ArrowRight, Play, Zap, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Settings, MousePointer2, Loader2, Globe, Database, PenTool, Share2, Scissors, Key, Terminal, Code2, Shield } from "lucide-react";
+import { ArrowRight, Play, Zap, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Settings, MousePointer2, Loader2, Globe, Database, PenTool, Boxes, Scale, Key, Terminal, Code2, Shield } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -417,7 +417,7 @@ export default function Home() {
                            </p>
                          </div>
                          <div className="p-6 glass border border-border/50 rounded-3xl shadow-sm">
-                           <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><FileText className="w-5 h-5 text-blue-500" /> Key Insights</h3>
+                           <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><FileText className="w-5 h-5 text-blue-500" /> Frameworks</h3>
                            <ul className="space-y-3 text-sm text-foreground/70 list-disc pl-5">
                              <li>The song was a global number-one hit, topping charts in 25 countries.</li>
                              <li>The music video sparked the "Rickroll" internet meme in the late 2000s.</li>
@@ -427,7 +427,7 @@ export default function Home() {
                        </div>
                        <div className="space-y-6">
                          <div className="p-6 glass border border-border/50 rounded-3xl shadow-sm">
-                           <h3 className="text-sm font-bold mb-4 uppercase tracking-wider text-foreground/50">Action Items</h3>
+                           <h3 className="text-sm font-bold mb-4 uppercase tracking-wider text-foreground/50">Bias & Critique</h3>
                            <ul className="space-y-3 text-sm text-foreground/70">
                              <li className="flex items-start gap-2"><div className="w-4 h-4 rounded border border-border mt-0.5 shrink-0" /> Never give you up</li>
                              <li className="flex items-start gap-2"><div className="w-4 h-4 rounded border border-border mt-0.5 shrink-0" /> Never let you down</li>
@@ -460,7 +460,7 @@ export default function Home() {
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col items-center justify-center h-64 text-center">
                     <MessageSquare className="w-12 h-12 text-foreground/20 mb-4" />
                     <h3 className="text-lg font-bold">Chat with your Videos</h3>
-                    <p className="text-sm text-foreground/50 max-w-sm mt-2">Ask questions, extract action items, and brainstorm ideas based on your video library.</p>
+                    <p className="text-sm text-foreground/50 max-w-sm mt-2">Ask questions, extract frameworks and arguments, and brainstorm ideas based on your video library.</p>
                   </div>
                 )}
 
@@ -514,7 +514,7 @@ export default function Home() {
                    <span className="text-white/50">•</span>
                    <span>Chat with your video</span>
                    <span className="text-white/50">•</span>
-                   <span>Extract Action Items</span>
+                   <span>Extract Frameworks</span>
                    <span className="text-white/50">•</span>
                    <span>Export to Notion</span>
                    <span className="text-white/50">•</span>
@@ -539,12 +539,12 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[ 
-              { icon: PenTool, title: "Multi-Page Notes", desc: "Get highly structured, exhaustive handwritten notes covering every single minute, quote, and action item of the video." },
-              { icon: MessageSquare, title: "Chat with the AI", desc: "Have a conversation directly with the video's transcript. Ask specific questions and get precise, timestamped answers instantly." },
-              { icon: Share2, title: "Marketing Assets", desc: "Instantly repurpose any video into ready-to-publish SEO blog posts, Twitter threads, and LinkedIn posts with one click." },
-              { icon: Scissors, title: "Viral Clips Generator", desc: "Automatically identify the most engaging and controversial moments with exact timestamps for easy Shorts & Reels creation." },
+              { icon: PenTool, title: "Signal-to-Noise Density", desc: "See exactly what percentage of a video is real value. We strip sponsor reads, filler, and repetition — leaving only the high-signal content." },
+              { icon: MessageSquare, title: "Chat with the AI", desc: "Have a conversation directly with the video's transcript. Ask specific questions and get precise answers grounded in the video." },
+              { icon: Boxes, title: "Semantic Topic Clusters", desc: "Content grouped by theme, not by time — jump to any topic's combined summary, wherever it appeared in the video." },
+              { icon: Scale, title: "Debate Matrix", desc: "Map each speaker's stance, isolate their claims, and see exactly where experts agree and disagree." },
               { icon: Globe, title: "Global Languages", desc: "Summarize and chat with videos in over 12 languages. Break down language barriers and consume global content effortlessly." },
-              { icon: Database, title: "Local-First Privacy", desc: "Your library, your rules. All folders, histories, and summaries are stored securely in your own local SQLite database." }
+              { icon: Database, title: "Local-First Knowledge", desc: "Export any summary to Obsidian or Notion with auto-generated wiki-links, straight into your personal knowledge base." }
             ].map((feature, i) => (
               <div key={i} className="bg-card border border-border p-10 rounded-[2rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
                 <div className="w-14 h-14 bg-foreground/5 rounded-2xl flex items-center justify-center text-foreground mb-8 group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
