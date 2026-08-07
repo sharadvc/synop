@@ -291,3 +291,81 @@ export async function llmJson<T>(opts: LlmOptions): Promise<T> {
 
   throw lastErr || new Error('No working AI provider. Add a Gemini, Groq, or OpenRouter key in Settings.');
 }
+
+/**
+ * Like llmJson but returns raw text (for prose/markdown reports).
+ * Same provider fallback chain: custom → OpenRouter → Groq → Gemini.
+ */
+export async function llmText(opts: {
+  system: string;
+  user: string;
+  keys: AiKeys;
+  temperature?: number;
+  maxTokens?: number;
+  maxUserChars?: number;
+}): Promise<string> {
+  const { system, user, keys, temperature = 0.3, maxTokens = 6000, maxUserChars = 12000 } = opts;
+  const truncated = user.length > maxUserChars ? user.slice(0, maxUserChars) + '\n\n[INPUT TRUNCATED]' : user;
+
+  // Custom providers
+  for (const p of keys.customProviders || []) {
+    for (const model of p.models) {
+      const content = await callCustomProvider(p, model, system, truncated, temperature, maxTokens);
+      if (content && content.trim()) return content.trim();
+    }
+  }
+
+  // OpenRouter
+  if (keys.openrouter) {
+    for (const model of OPENROUTER_FALLBACK_MODELS) {
+      try {
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${keys.openrouter}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://synop.local', 'X-Title': 'Synop' },
+          body: JSON.stringify({ model, messages: [{ role: 'system', content: system }, { role: 'user', content: truncated }], temperature, max_tokens: maxTokens }),
+        });
+        if (res.status === 429) { await delay(1000); continue; }
+        if (!res.ok) continue;
+        const j = await res.json();
+        const content = j.choices?.[0]?.message?.content;
+        if (content && content.trim()) return content.trim();
+      } catch {}
+    }
+  }
+
+  // Groq
+  if (keys.groq) {
+    for (const model of ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']) {
+      try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${keys.groq}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, messages: [{ role: 'system', content: system }, { role: 'user', content: truncated }], temperature, max_tokens: maxTokens }),
+        });
+        if (!res.ok) continue;
+        const j = await res.json();
+        const content = j.choices?.[0]?.message?.content;
+        if (content && content.trim()) return content.trim();
+      } catch {}
+    }
+  }
+
+  // Gemini
+  if (keys.gemini) {
+    try {
+      const res = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(keys.gemini),
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: `System Prompt:\n${system}\n\nUser Request:\n${user}` }] }],
+            generationConfig: { temperature, maxOutputTokens: maxTokens } }) },
+      );
+      if (res.ok) {
+        const j = await res.json();
+        const content = j.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (content && content.trim()) return content.trim();
+      }
+    } catch {}
+  }
+
+  throw new Error('No working AI provider for report generation.');
+}
