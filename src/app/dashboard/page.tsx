@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu, Radio, Cpu, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu, Radio, Cpu, RefreshCw, Sparkles, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { getDashboardData } from "@/actions/dashboard";
 import { createFolder, deleteFolder, assignToFolder } from "@/actions/folders";
 import { useLanguage } from "@/context/LanguageContext";
 import ChannelsPanel from "@/components/ChannelsPanel";
+import BriefingPanel from "@/components/BriefingPanel";
 import { aiHeaders } from "@/lib/client-ai";
 import { PERSONAS, PERSONA_LIST, getPersona, savePersona, personaDef, type PersonaId } from "@/lib/persona";
 
@@ -23,7 +24,7 @@ export default function DashboardPage() {
   const [summaries, setSummaries] = useState<any[]>([]);
   const [folders, setFolders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("Dashboard");
+  const [activeTab, setActiveTab] = useState("Briefing");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [showFolderDialog, setShowFolderDialog] = useState(false);
@@ -92,6 +93,7 @@ export default function DashboardPage() {
   };
 
   const tabs = [
+    { name: "Briefing", icon: <Sun className="w-4 h-4" /> },
     { name: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
     { name: "Summaries", icon: <Folder className="w-4 h-4" /> },
     { name: "Channels", icon: <Radio className="w-4 h-4" /> },
@@ -573,6 +575,10 @@ export default function DashboardPage() {
               </div>
               <button onClick={() => setActiveTab('Settings')} className="ml-auto shrink-0 text-[11px] font-bold text-primary hover:underline">Change</button>
             </div>
+          )}
+
+          {activeTab === "Briefing" && (
+            <BriefingPanel summaries={summaries} />
           )}
 
           {activeTab === "Dashboard" && (

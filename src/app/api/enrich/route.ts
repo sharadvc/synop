@@ -49,7 +49,6 @@ export async function POST(req: Request) {
     }
 
     const has = {
-      signalDensity: !force && summary.signalDensity,
       topicClusters: !force && summary.topicClusters,
       debateMatrix: !force && summary.debateMatrix,
       freshness: !force && summary.freshness,
@@ -76,11 +75,10 @@ export async function POST(req: Request) {
     );
 
     // Fully cached → return immediately, no AI spend.
-    if (has.signalDensity && has.topicClusters && has.debateMatrix && has.freshness) {
+    if (has.topicClusters && has.debateMatrix && has.freshness) {
       return NextResponse.json({
         videoId,
         language,
-        signalDensity: parse(summary.signalDensity),
         topicClusters: parse(summary.topicClusters),
         debateMatrix: parse(summary.debateMatrix),
         freshness: parse(summary.freshness),
@@ -92,7 +90,6 @@ export async function POST(req: Request) {
     const keys = resolveKeys(req.headers);
     const payload = await enrichTranscript(transcript, keys, language);
     const out = {
-      signalDensity: has.signalDensity ? parse(summary.signalDensity) : payload.signalDensity,
       topicClusters: has.topicClusters ? parse(summary.topicClusters) : payload.topicClusters,
       debateMatrix: has.debateMatrix ? parse(summary.debateMatrix) : payload.debateMatrix,
       freshness: has.freshness ? parse(summary.freshness) : payload.freshness,
@@ -103,7 +100,6 @@ export async function POST(req: Request) {
     await db.summary.update({
       where: { id: summary.id },
       data: {
-        ...(out.signalDensity ? { signalDensity: JSON.stringify(out.signalDensity) } : {}),
         ...(out.topicClusters ? { topicClusters: JSON.stringify(out.topicClusters) } : {}),
         ...(out.debateMatrix ? { debateMatrix: JSON.stringify(out.debateMatrix) } : {}),
         ...(out.freshness ? { freshness: JSON.stringify(out.freshness) } : {}),

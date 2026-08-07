@@ -17,10 +17,7 @@ import YouTube from 'react-youtube';
 import { MessageSquare, Send, X, ExternalLink, Play, Network } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
-const MermaidGraph = dynamic(() => import('@/components/MermaidGraph'), { ssr: false });
 const FrameworkDiagram = dynamic(() => import('@/components/FrameworkDiagram'), { ssr: false });
-const HandwrittenNotes = dynamic(() => import('@/components/HandwrittenNotes'), { ssr: false });
-import { entityGraphToMermaid } from '@/lib/phase2/entityGraph';
 
 interface SummaryData {
   executiveSummary: string;
@@ -39,30 +36,14 @@ interface ApiResponse {
   transcript: string | null;
   summary: SummaryData | null;
   notes: string | null;
-  signalDensity?: SignalDensityData | null;
   topicClusters?: TopicClusterData[] | null;
   debateMatrix?: DebateMatrixData | null;
   freshness?: FreshnessData[] | null;
-  entityGraph?: EntityGraphData | null;
   aiError: string | null;
   error?: string;
 }
 
-interface EntityGraphData {
-  nodes: { id: string; name: string; type: string; degree: number; mentions: number; kind: 'entity' | 'topic' }[];
-  edges: { source: string; target: string; weight: number; kind: 'cooccur' | 'membership' }[];
-}
-
 // ── Phase 2 (next-gen) payload shapes ─────────────────────────────────────
-interface SignalDensityData {
-  density_score: number;
-  value_minutes: number;
-  total_minutes: number;
-  high_signal_transcript: string;
-  removed_segments: { type: string; count: number; approx_minutes: number }[];
-  heuristic?: boolean;
-}
-
 interface TopicClusterData {
   topic: string;
   summary: string;
@@ -101,7 +82,6 @@ function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: ()
 }
 
 const ALL_TABS = [
-  { id: "mindmap", label: "Knowledge Graph", icon: <Network className="w-4 h-4" strokeWidth={1.5} /> },
   { id: "topics", label: "Topics", icon: <Tags className="w-4 h-4" strokeWidth={1.5} /> },
   { id: "debate", label: "Debate", icon: <Gavel className="w-4 h-4" strokeWidth={1.5} /> },
   { id: "frameworks", label: "Frameworks", icon: <Boxes className="w-4 h-4" strokeWidth={1.5} /> },
@@ -137,48 +117,60 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [notionResult, setNotionResult] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
-  // Study Mode (flashcards + quiz)
-  const [studyMode, setStudyMode] = useState<'cards' | 'quiz' | 'notes'>('cards');
+  // Study Mode (flashcards + quiz + spaced repetition review)
+  const [studyMode, setStudyMode] = useState<'cards' | 'quiz' | 'review'>('cards');
   const [cardIdx, setCardIdx] = useState(0);
   const [cardFlipped, setCardFlipped] = useState(false);
   const [quizIdx, setQuizIdx] = useState(0);
   const [quizChoice, setQuizChoice] = useState<string | null>(null);
   const [quizScore, setQuizScore] = useState(0);
   const [quizDone, setQuizDone] = useState(false);
-  // Handwritten notes (Phase 3)
-  const [handwrittenNotes, setHandwrittenNotes] = useState<string | null>(null);
-  const [notesLoading, setNotesLoading] = useState(false);
-  const [notesError, setNotesError] = useState<string | null>(null);
+  // Spaced repetition review (SM-2-lite, persisted per video in localStorage)
+  const REVIEW_KEY = `synop_review_${id}`;
+  const [reviewQueue, setReviewQueue] = useState<number[]>([]);
+  const [reviewIdx, setReviewIdx] = useState(0);
+  const [reviewFlipped, setReviewFlipped] = useState(false);
+  const [reviewDone, setReviewDone] = useState(false);
 
-  const loadHandwrittenNotes = async () => {
-    if (handwrittenNotes || notesLoading) return;
-    setNotesLoading(true);
-    setNotesError(null);
-    try {
-      const res = await fetch('/api/notes', {
-        method: 'POST',
-        headers: {
-          ...aiHeaders(),
-        },
-        body: JSON.stringify({ videoId: id, language, persona: getPersona() }),
-      });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error || 'Failed to generate notes');
-      setHandwrittenNotes(j.notes);
-    } catch (err: any) {
-      console.error('[notes]', err);
-      setNotesError(err.message || 'Failed to generate notes');
-    } finally {
-      setNotesLoading(false);
+  const dueReviewIndices = () => {
+    const now = Date.now();
+    let stored: any = {};
+    try { stored = JSON.parse(localStorage.getItem(REVIEW_KEY) || '{}'); } catch {}
+    return studyDeck.map((c, i) => ({ i, s: stored[c.front] })).filter(x => !x.s || x.s.due <= now).map(x => x.i);
+  };
+
+  const startReview = (all = false) => {
+    const due = all ? studyDeck.map((_, i) => i) : dueReviewIndices();
+    setReviewQueue(due);
+    setReviewIdx(0);
+    setReviewFlipped(false);
+    setReviewDone(due.length === 0);
+  };
+
+  const gradeReview = (grade: 'again' | 'good' | 'easy') => {
+    const card = studyDeck[reviewQueue[reviewIdx]];
+    if (!card) return;
+    let stored: any = {};
+    try { stored = JSON.parse(localStorage.getItem(REVIEW_KEY) || '{}'); } catch {}
+    const prev = stored[card.front] || { reps: 0, ease: 2.5, interval: 0 };
+    if (grade === 'again') { prev.reps = 0; prev.interval = 0; }
+    else {
+      prev.reps += 1;
+      if (prev.interval === 0) prev.interval = grade === 'easy' ? 3 : 1;
+      else prev.interval = Math.round(prev.interval * prev.ease);
+      if (grade === 'easy') prev.ease += 0.1;
     }
+    prev.due = Date.now() + Math.max(1, prev.interval) * 24 * 3600 * 1000;
+    stored[card.front] = prev;
+    localStorage.setItem(REVIEW_KEY, JSON.stringify(stored));
+    if (reviewIdx + 1 >= reviewQueue.length) setReviewDone(true);
+    else { setReviewIdx(i => i + 1); setReviewFlipped(false); }
   };
 
   // ── Phase 2: progressive enrichment state ───────────────────────────────
-  const [signalDensity, setSignalDensity] = useState<SignalDensityData | null>(null);
   const [topicClusters, setTopicClusters] = useState<TopicClusterData[] | null>(null);
   const [debateMatrix, setDebateMatrix] = useState<DebateMatrixData | null>(null);
   const [freshness, setFreshness] = useState<FreshnessData[] | null>(null);
-  const [entityGraph, setEntityGraph] = useState<EntityGraphData | null>(null);
   const [enriching, setEnriching] = useState(false);
   const [enrichError, setEnrichError] = useState<string | null>(null);
   const enrichStartedRef = useRef<string>('');
@@ -201,11 +193,9 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Enrichment failed');
-      setSignalDensity(j.signalDensity ?? null);
       setTopicClusters(j.topicClusters ?? null);
       setDebateMatrix(j.debateMatrix ?? null);
       setFreshness(j.freshness ?? null);
-      setEntityGraph(j.entityGraph ?? null);
     } catch (err: any) {
       console.error('[enrich]', err);
       setEnrichError(err.message || 'Enrichment failed');
@@ -217,7 +207,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   // After the core summary loads, progressively compute the Phase 2 features.
   useEffect(() => {
     if (loading || !data) return;
-    const allPresent = signalDensity && topicClusters && debateMatrix && freshness;
+    const allPresent = topicClusters && debateMatrix && freshness;
     if (allPresent) return;
     if (enrichStartedRef.current === id + '|' + language) return;
     enrichStartedRef.current = id + '|' + language;
@@ -294,13 +284,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     if (!data?.summary) return "";
     const s = data.summary;
     let md = `# ${data.meta?.title || 'Summary'}\n\n## Executive Summary\n${s.executiveSummary || ''}\n\n`;
-    if (signalDensity) {
-      md += `## Signal Density: ${signalDensity.density_score}%\n`;
-      md += `> ${signalDensity.value_minutes} minutes of real value from a ${signalDensity.total_minutes}-minute video.\n\n`;
-      if (signalDensity.removed_segments.length) {
-        md += signalDensity.removed_segments.map(r => `- Removed ${r.approx_minutes} min of ${r.type.replace(/_/g, ' ').toLowerCase()}`).join('\n') + '\n\n';
-      }
-    }
     if (topicClusters && topicClusters.length > 0) {
       md += `## Topics\n`;
       topicClusters.forEach(t => { md += `### ${t.topic}\n${t.summary}\n\n`; });
@@ -522,11 +505,9 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         if (j.error) setError(j.error);
         else {
           setData(j);
-          setSignalDensity(j.signalDensity ?? null);
           setTopicClusters(j.topicClusters ?? null);
           setDebateMatrix(j.debateMatrix ?? null);
           setFreshness(j.freshness ?? null);
-          setEntityGraph(j.entityGraph ?? null);
         }
       })
       .catch(e => setError(e.message))
@@ -577,6 +558,8 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     ];
   }, [summary, topicClusters]);
 
+  const dueCount = dueReviewIndices().length;
+
   const studyQuiz = useMemo(() => {
     if (!summary) return [] as { question: string; correct: string; options: string[] }[];
     const fw = summary.frameworks ?? [];
@@ -594,13 +577,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     .filter((t): t is (typeof ALL_TABS)[number] => !!t && !p.hiddenTabs.includes(t.id));
 
   const [selectedTopic, setSelectedTopic] = useState(0);
-
-  // Real entity knowledge graph — rendered deterministically from co-occurrence
-  // data computed at enrich time (no LLM hallucination).
-  const entityMermaid = useMemo(
-    () => entityGraphToMermaid(entityGraph?.nodes ?? [], entityGraph?.edges ?? []),
-    [entityGraph]
-  );
 
   // Keep the selected topic in range if the cluster list shrinks.
   const activeTopicIdx = Math.min(selectedTopic, Math.max(0, (topicClusters?.length || 1) - 1));
@@ -723,66 +699,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                 </div>
               </div>
 
-              {/* Phase 2: Signal-to-Noise Density badge */}
-              {(signalDensity || enriching || enrichError) && (
-                <div className="animate-rise stagger-3">
-                  {signalDensity ? (
-                    <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-primary/5 p-6 md:p-8 shadow-lg shadow-primary/5">
-                      <div className="flex flex-col md:flex-row md:items-center gap-6">
-                        <div className="flex items-center gap-5 shrink-0">
-                          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                            <Gauge className="w-8 h-8 text-primary" strokeWidth={1.5} />
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/70 mb-1">Signal Density</p>
-                            {signalDensity.heuristic ? (
-                              <span className="text-lg font-bold text-foreground/60">Analysis unavailable</span>
-                            ) : (
-                              <div className="flex items-end gap-2">
-                                <span className="text-5xl font-extrabold font-serif text-foreground leading-none">{signalDensity.density_score}%</span>
-                                <span className="text-xs font-bold text-foreground/50 pb-1">high-signal</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex-1 space-y-2">
-                          {signalDensity.heuristic ? (
-                            <p className="text-[15px] font-medium text-foreground/80">Density classification couldn't run — showing the full transcript as your high-signal content.</p>
-                          ) : (
-                            <p className="text-[15px] font-medium text-foreground/80">
-                              We extracted the <span className="font-bold text-foreground">{signalDensity.value_minutes}</span> minutes of actual value
-                              from this <span className="font-bold text-foreground">{signalDensity.total_minutes}</span>-minute video.
-                            </p>
-                          )}
-                          {signalDensity.removed_segments.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {signalDensity.removed_segments.map((seg, i) => (
-                                <span key={i} className="px-2.5 py-1 rounded-full bg-foreground/5 border border-border/50 text-[11px] font-bold text-foreground/60">
-                                  {seg.type.replace(/_/g, ' ').toLowerCase()}: {seg.approx_minutes} min saved
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : enriching ? (
-                    <div className="h-24 rounded-3xl border border-border/50 bg-foreground/5 animate-pulse flex items-center gap-3 px-6">
-                      <Loader2 className="w-5 h-5 text-primary animate-spin" />
-                      <span className="text-sm font-bold text-foreground/50">Calculating signal density...</span>
-                    </div>
-                  ) : (
-                    <div className="h-24 rounded-3xl border border-dashed border-border/60 bg-foreground/5 flex items-center gap-3 px-6">
-                      <AlertCircle className="w-5 h-5 text-destructive/70 shrink-0" />
-                      <span className="text-sm font-medium text-foreground/60">Signal density couldn't be computed right now.</span>
-                      <button onClick={() => { enrichStartedRef.current = ''; runEnrich(); }} className="ml-auto shrink-0 h-9 px-4 rounded-xl text-xs font-bold text-primary border border-primary/30 hover:bg-primary/10 transition-colors flex items-center gap-2">
-                        <RefreshCw className="w-3.5 h-3.5" /> Retry
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {data.aiError && <div className="flex flex-col items-center justify-center py-20 text-muted-foreground text-center space-y-4">
                       <AlertCircle className="w-12 h-12 text-destructive/50" />
                       <div>
@@ -827,63 +743,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
 
                   {/* Tab Content */}
                   <div className="min-h-[400px] animate-rise stagger-5">
-                    {activeTab === "mindmap" && (
-                      <div className="w-full flex flex-col gap-4">
-                        <div className="flex items-center justify-between gap-3 flex-wrap">
-                          <div>
-                            <div className="bg-foreground text-background px-4 py-2 rounded-xl text-xs font-bold uppercase w-fit tracking-wide shadow-md">Knowledge Graph</div>
-                            <p className="text-sm text-foreground/50 mt-3 max-w-xl">Semantic topics (purple) linked to the entities mentioned in each — plus entity↔entity co-occurrence edges. Every link is grounded in the actual content, not hallucinated.</p>
-                          </div>
-                          {enrichError && !entityGraph && (
-                            <button onClick={() => { enrichStartedRef.current = ''; runEnrich(); }} className="h-9 px-4 rounded-xl text-xs font-bold text-primary border border-primary/30 hover:bg-primary/10 transition-colors flex items-center gap-2">
-                              <RefreshCw className="w-3.5 h-3.5" /> Retry Analysis
-                            </button>
-                          )}
-                        </div>
-
-                        {!entityGraph && enriching && (
-                          <div className="h-64 rounded-2xl bg-foreground/5 border border-border/50 animate-pulse flex items-center justify-center gap-3">
-                            <Loader2 className="w-5 h-5 text-primary animate-spin" />
-                            <span className="text-sm font-bold text-foreground/50">Mapping entity relationships...</span>
-                          </div>
-                        )}
-
-                        {entityGraph && entityGraph.nodes.length === 0 && (
-                          <div className="p-12 text-center glass border border-border/50 rounded-3xl">
-                            <Network className="w-12 h-12 text-foreground/20 mx-auto mb-4" />
-                            <p className="font-bold text-foreground">No connected concepts found</p>
-                            <p className="text-sm text-foreground/50 mt-1 max-w-md mx-auto">This video didn't surface enough distinct topics or entities that connect to draw a meaningful graph.</p>
-                          </div>
-                        )}
-
-                        {entityMermaid && (
-                          <div className="flex flex-col gap-4">
-                            <MermaidGraph chart={entityMermaid} />
-                            <div className="flex flex-col items-center gap-2">
-                              {entityGraph!.nodes.some(n => n.kind === 'topic') && (
-                                <div className="flex flex-wrap gap-2 justify-center">
-                                  {entityGraph!.nodes.filter(n => n.kind === 'topic').map((n, i) => (
-                                    <span key={i} className="px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-[11px] font-bold text-purple-600">
-                                      {n.name}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                              {entityGraph!.nodes.some(n => n.kind === 'entity') && (
-                                <div className="flex flex-wrap gap-2 justify-center">
-                                  {entityGraph!.nodes.filter(n => n.kind === 'entity').slice(0, 12).map((n, i) => (
-                                    <span key={i} className="px-2.5 py-1 rounded-full bg-foreground/5 border border-border/50 text-[11px] font-bold text-foreground/60">
-                                      {n.name} <span className="text-foreground/30 font-medium">×{n.mentions}</span>
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
                     {activeTab === "topics" && (
                       <div className="w-full space-y-8">
                         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1201,9 +1060,11 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                               className={`h-9 px-4 rounded-xl text-xs font-bold transition-colors ${studyMode === 'quiz' ? 'bg-primary text-white' : 'bg-foreground/5 hover:bg-foreground/10'}`}
                             >Quiz</button>
                             <button
-                              onClick={() => { setStudyMode('notes'); loadHandwrittenNotes(); }}
-                              className={`h-9 px-4 rounded-xl text-xs font-bold transition-colors ${studyMode === 'notes' ? 'bg-primary text-white' : 'bg-foreground/5 hover:bg-foreground/10'}`}
-                            >Notes</button>
+                              onClick={() => { startReview(); setStudyMode('review'); }}
+                              className={`h-9 px-4 rounded-xl text-xs font-bold transition-colors ${studyMode === 'review' ? 'bg-primary text-white' : 'bg-foreground/5 hover:bg-foreground/10'} inline-flex items-center gap-1.5`}
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" /> Review{dueCount > 0 ? ` (${dueCount})` : ''}
+                            </button>
                             <button
                               onClick={async () => {
                                 const lines = studyDeck.map(d => `${d.front}\t${d.back}`);
@@ -1284,8 +1145,47 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                           </div>
                         )}
 
-                        {studyMode === 'notes' && (
-                          <HandwrittenNotes text={handwrittenNotes} loading={notesLoading} error={notesError} onLoad={loadHandwrittenNotes} />
+                        {studyMode === 'review' && (
+                          <div className="max-w-xl mx-auto">
+                            {reviewDone ? (
+                              <div className="text-center p-10 glass border border-border/50 rounded-3xl">
+                                <RefreshCw className="w-12 h-12 text-primary mx-auto mb-4" />
+                                <h4 className="text-2xl font-bold mb-2">Review complete!</h4>
+                                <p className="text-lg text-foreground/70 mb-6">All due cards reviewed. New cards come due as you keep studying.</p>
+                                <div className="flex gap-3 justify-center flex-wrap">
+                                  <button onClick={() => startReview(true)} className="bg-primary text-white px-6 py-3 rounded-full font-bold">Review all again</button>
+                                  <button onClick={() => setStudyMode('cards')} className="bg-foreground/10 text-foreground px-6 py-3 rounded-full font-bold">Back to cards</button>
+                                </div>
+                              </div>
+                            ) : reviewQueue.length === 0 ? (
+                              <div className="text-center p-10 glass border border-border/50 rounded-3xl">
+                                <p className="text-foreground/60">No cards due right now.</p>
+                                <button onClick={() => startReview(true)} className="mt-4 bg-primary text-white px-6 py-3 rounded-full font-bold">Review all anyway</button>
+                              </div>
+                            ) : (
+                              <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-bold text-foreground/50">Review {reviewIdx + 1} / {reviewQueue.length}</span>
+                                  <span className="text-sm font-bold text-foreground/50">Spaced repetition</span>
+                                </div>
+                                <div onClick={() => setReviewFlipped(f => !f)} className="cursor-pointer min-h-[240px]">
+                                  <div className={`relative w-full min-h-[240px] glass border rounded-3xl shadow-xl p-8 transition-all duration-300 flex flex-col items-center justify-center text-center ${reviewFlipped ? 'bg-primary text-white border-primary' : 'border-border/50'}`}>
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-foreground/40 mb-4">{reviewFlipped ? 'Answer' : 'Question'} · tap to flip</span>
+                                    <p className={`text-xl md:text-2xl font-bold leading-snug whitespace-pre-wrap ${reviewFlipped ? 'text-white' : 'text-foreground'}`}>
+                                      {reviewFlipped ? studyDeck[reviewQueue[reviewIdx]]?.back : studyDeck[reviewQueue[reviewIdx]]?.front}
+                                    </p>
+                                  </div>
+                                </div>
+                                {reviewFlipped && (
+                                  <div className="grid grid-cols-3 gap-2">
+                                    <button onClick={() => gradeReview('again')} className="h-11 rounded-xl bg-red-500/10 text-red-500 text-sm font-bold hover:bg-red-500/20 transition-colors">Again</button>
+                                    <button onClick={() => gradeReview('good')} className="h-11 rounded-xl bg-yellow-500/10 text-yellow-600 text-sm font-bold hover:bg-yellow-500/20 transition-colors">Good</button>
+                                    <button onClick={() => gradeReview('easy')} className="h-11 rounded-xl bg-green-500/10 text-green-600 text-sm font-bold hover:bg-green-500/20 transition-colors">Easy</button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}

@@ -1,11 +1,10 @@
-import { analyzeSignalDensity } from './signalDensity';
 import { analyzeTopicClusters } from './topicClusters';
 import { analyzeDebateMatrix } from './debateMatrix';
 import { analyzeFreshness } from './freshness';
 import type { AiKeys } from '@/lib/ai';
-import type { Phase2Payload, SignalDensity, TopicCluster, DebateMatrix, FreshnessCheck } from './types';
+import type { Phase2Payload, TopicCluster, DebateMatrix, FreshnessCheck } from './types';
 
-export type { Phase2Payload, SignalDensity, TopicCluster, DebateMatrix, FreshnessCheck };
+export type { Phase2Payload, TopicCluster, DebateMatrix, FreshnessCheck };
 
 /**
  * Runs every Phase 2 feature in parallel. Each is independently guarded so a
@@ -16,15 +15,13 @@ export async function enrichTranscript(
   keys: AiKeys,
   language = 'English',
 ): Promise<Phase2Payload> {
-  const [signalDensity, topicClusters, debateMatrix, freshness] = await Promise.all([
-    runGuarded(() => analyzeSignalDensity(transcript, keys, language)),
+  const [topicClusters, debateMatrix, freshness] = await Promise.all([
     runGuarded(() => analyzeTopicClusters(transcript, keys, language)),
     runGuarded(() => analyzeDebateMatrix(transcript, keys, language)),
     runGuarded(() => analyzeFreshness(transcript, keys, language)),
   ]);
 
   return {
-    signalDensity,
     topicClusters,
     debateMatrix,
     freshness,

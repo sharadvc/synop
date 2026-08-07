@@ -56,7 +56,6 @@ export interface FreshnessCheck {
 }
 
 export interface Phase2Payload {
-  signalDensity: SignalDensity | null;
   topicClusters: TopicCluster[] | null;
   debateMatrix: DebateMatrix | null;
   freshness: FreshnessCheck[] | null;
