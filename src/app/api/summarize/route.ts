@@ -1,19 +1,36 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
 import { extractVideoId, getTranscript } from '@/lib/youtube';
 import { db } from '@/lib/db';
 export const maxDuration = 120;
 
-const summarySchema = z.object({
-  executiveSummary: z.string(),
-  quotes: z.array(z.string()),
-  resources: z.array(z.string()),
-  biasAnalysis: z.array(z.string()).optional(),
-  frameworks: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
-  entities: z.array(z.object({ type: z.string(), name: z.string() })).optional(),
-  mindMap: z.string().optional(),
-  verdict: z.string(),
-});
+/**
+ * Tolerant normalizer for the LLM's summary payload. LLMs frequently return
+ * single fields in the wrong shape (e.g. biasAnalysis as objects, frameworks
+ * missing a field). A strict zod parse would throw and the WHOLE summary would
+ * be discarded — this coerces each field to the expected shape and keeps what
+ * is valid, so the summary always persists.
+ */
+function sanitizeSummary(raw: any): any {
+  const s = raw || {};
+  const asStrings = (v: any): string[] => {
+    if (!Array.isArray(v)) return [];
+    return v.map(x => (typeof x === 'string' ? x : typeof x?.text === 'string' ? x.text : String(x?.name || x?.content || x || ''))).filter(Boolean);
+  };
+  return {
+    executiveSummary: typeof s.executiveSummary === 'string' ? s.executiveSummary : String(s.executiveSummary ?? ''),
+    quotes: asStrings(s.quotes),
+    resources: asStrings(s.resources),
+    biasAnalysis: asStrings(s.biasAnalysis),
+    frameworks: (Array.isArray(s.frameworks) ? s.frameworks : [])
+      .map((f: any) => ({ name: String(f?.name ?? ''), description: String(f?.description ?? '') }))
+      .filter((f: any) => f.name),
+    entities: (Array.isArray(s.entities) ? s.entities : [])
+      .map((e: any) => ({ type: String(e?.type ?? 'Entity'), name: String(e?.name ?? '') }))
+      .filter((e: any) => e.name),
+    mindMap: typeof s.mindMap === 'string' ? s.mindMap : '',
+    verdict: typeof s.verdict === 'string' ? s.verdict : String(s.verdict ?? ''),
+  };
+}
 
 /** Read the Phase 2 fields off a stored Summary row (JSON strings -> objects). */
 function phase2FromSummary(s: any) {
@@ -303,7 +320,7 @@ export async function POST(req: Request) {
         };
 
         summary = await callModelWithFallback(transcript, customKeys, language, customPrompt);
-        summary = summarySchema.parse(summary);
+        summary = sanitizeSummary(summary);
 
         // Save to DB
         await db.summary.create({

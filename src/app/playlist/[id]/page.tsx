@@ -1,8 +1,8 @@
 import Navbar from "@/components/Navbar";
-import { Plus, Play, Loader2, ListVideo, CheckCircle2, GraduationCap } from "lucide-react";
+import { Play, ListVideo, CheckCircle2, GraduationCap } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import ytpl from 'ytpl';
+import { fetchPlaylist } from "@/lib/playlist";
 import BatchSummarize from "@/components/BatchSummarize";
 import CourseStudy, { type CourseCard } from "@/components/CourseStudy";
 
@@ -17,7 +17,7 @@ export default async function PlaylistPage({ params, searchParams }: { params: P
 
   let playlist;
   try {
-    playlist = await ytpl(id, { limit: 50 });
+    playlist = await fetchPlaylist(id, 50);
   } catch (error) {
     return <div className="p-12 text-center">Invalid Playlist ID or Private Playlist</div>;
   }
@@ -84,10 +84,10 @@ export default async function PlaylistPage({ params, searchParams }: { params: P
                     <div key={item.id} className="p-4 flex items-center justify-between hover:bg-accent/30 transition-colors group">
                        <div className="flex items-center gap-4">
                           <span className="text-foreground/30 font-bold w-6 text-right">{index + 1}</span>
-                          <img src={item.bestThumbnail.url || ""} className="w-24 h-14 object-cover rounded-lg border border-border/50" />
+                          <img src={item.thumbUrl || ""} className="w-24 h-14 object-cover rounded-lg border border-border/50" />
                           <div>
                              <h4 className="font-bold text-sm line-clamp-1 group-hover:text-primary transition-colors">{item.title}</h4>
-                             <p className="text-xs text-foreground/50 mt-1">{item.author.name}</p>
+                             <p className="text-xs text-foreground/50 mt-1">{item.author}</p>
                           </div>
                        </div>
 
