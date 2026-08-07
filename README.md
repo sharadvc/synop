@@ -1,115 +1,144 @@
 <div align="center">
-  <img src="/logo.svg" alt="Synop" width="64" height="64" />
+  <img src="public/logo.svg" alt="Synop" width="72" height="72" />
 
   <h1 align="center">Synop</h1>
 
   <p align="center">
-    <strong>Turn any YouTube video into a study deck, a research brief, or a shareable note.</strong>
+    <strong>Your YouTube watch-time, turned into a study deck, a research brief, or a shareable note.</strong>
     <br />
-    Free · open source · bring-your-own-key. It reshapes itself around <em>who you are</em> — student, researcher, or creator.
+    A persona-aware AI tool that reshapes every video around <em>who you are</em> — student, researcher, or creator.
   </p>
 
   <p align="center">
-    <a href="#features">Features</a> •
-    <a href="#quick-start">Quick Start</a> •
-    <a href="#bring-your-own-keys">BYOK</a> •
-    <a href="#tech-stack">Tech Stack</a> •
-    <a href="#license">License</a>
+    <a href="https://github.com/sharadvc/synop/releases"><img src="https://img.shields.io/badge/version-2.0.0-blue" alt="Version 2.0.0" /></a>
+    <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
+    <img src="https://img.shields.io/badge/Next.js-16-black" alt="Next.js 16" />
+    <img src="https://img.shields.io/badge/stack-OpenAI--compatible-purple" alt="Any OpenAI-compatible provider" />
+    <img src="https://img.shields.io/badge/PRs-welcome-orange" alt="PRs welcome" />
+    <img src="https://img.shields.io/github/stars/sharadvc/synop" alt="GitHub stars" />
+  </p>
+
+  <p align="center">
+    <strong>100% free · open source · bring your own key · runs entirely on your machine</strong>
   </p>
 </div>
 
 ---
 
-## What is Synop?
+## Why Synop?
 
-Synop is a **persona-aware** YouTube-to-knowledge tool. Paste a link and it doesn't just summarize — it reshapes the output around your workflow:
+Most "YouTube summarizers" give everyone the same generic summary. Synop doesn't.
 
-- 🎓 **Student** → lecture notes, flashcards, quiz, spaced-repetition review, whole-course Anki exports
-- 🔬 **Researcher** → dense, citation-grade summaries, claim fact-checking, bias analysis
-- ✍️ **Creator** → quotable moments, resources, and frameworks you can repurpose
+**It asks who you are — then reshapes everything around your job:**
 
-Every feature works even when the AI provider is down — deterministic fallbacks keep every tab showing real content.
+| 🎓 Student | 🔬 Researcher / Analyst | ✍️ Creator / Writer |
+|---|---|---|
+| Lecture notes, flashcards, quiz, spaced-repetition review | Citation-grade dossiers, claim fact-checking, bias analysis | Quotable moments, resources, and mental models to repurpose |
+| Whole-course playlists → one Anki deck | Obsidian/Notion sync with `[[Wiki-Links]]` | Clean markdown/PDF exports |
+| The summaries themselves are written in study-tutor style | The summaries are written in research-analyst style | The summaries surface the sharable gold |
+
+The content isn't just reordered — **the AI writes differently per persona**.
+
+And because it's built for reliability: **every feature works even when AI providers are down**, with deterministic fallbacks that always show a real result.
+
+---
+
+## Screenshots
+
+| | |
+|---|---|
+| **Landing** | **Daily Briefing** |
+| <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/landing.png" width="100%" /> | <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/dashboard-briefing.png" width="100%" /> |
+| **Summaries library** | **The Library — cross-video knowledge base** |
+| <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/dashboard-summaries.png" width="100%" /> | <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/dashboard-library.png" width="100%" /> |
+| **Channel watchlist** | **Settings — BYOK & custom providers** |
+| <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/dashboard-channels.png" width="100%" /> | <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/dashboard-settings.png" width="100%" /> |
+| **Video analysis (Topics)** | **Study Mode (flashcards)** |
+| <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/summary.png" width="100%" /> | <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/study-mode.png" width="100%" /> |
+
+---
 
 ## Features
 
-### Persona-tailored content
-On first run you pick who you are. The summaries, the tabs, and the default experience change to match — a student gets study material, a researcher gets a research dossier.
-
-### 🧠 The Library (compounding knowledge base)
-Search across every summary, browse a cross-video topic map that grows as you add videos, and **ask your whole library** a question. The more you summarize, the smarter it gets.
+### 🧠 The Library — a compounding knowledge base
+Every summary you add grows a searchable library: a **cross-video topic map**, full-text search across everything, and **"ask your whole library"** — LLM synthesis over all your videos. The more you use it, the smarter it gets.
 
 ### 📬 Daily Briefing
-One screen: new uploads from your watched channels + your recent library. A reason to open the app every day.
+One screen every morning: new uploads from your watched channels + your recent library. A reason to open the app.
 
 ### 🎓 Study Mode
 - **Flashcards** + **Quiz** built from the video's frameworks, topics, quotes, and critiques
-- **Spaced-repetition Review** (SM-2 style, Again/Good/Easy) — kept in-app
-- **Whole-course study**: paste a playlist → batch-summarize → one Anki deck across every lecture
+- **Spaced-repetition Review** (SM-2 style: Again / Good / Easy) — kept in-app, no export needed
+- **Whole-course study**: paste a playlist → batch-summarize every lecture → one Anki deck across the course
 
-### 🔬 Analysis (per video)
+### 🔬 Per-video analysis
 - **Semantic Topic Clusters** — content grouped by theme, not timestamp
-- **Multi-Speaker Debate Matrix** — stances and points of contention
+- **Multi-Speaker Debate Matrix** — each speaker's stance and points of contention
 - **Freshness / Temporal Decay** — claims fact-checked against current data
 - **Bias & Critique** — adversarial analysis of the creator's assumptions
 
 ### 📡 Channel Watchlist
-Add your favorite channels. New uploads get **auto-summarized** into your library.
+Follow your favorite channels — new uploads are **auto-summarized** into your library.
 
 ### 🔌 Bring Your Own Keys
-No subscription. Add any OpenAI-compatible provider — OpenAI, DeepSeek, Groq, OpenRouter, a local Ollama server — with a live model picker. Fallbacks: OpenRouter → Groq → Gemini.
+No subscription, no account, no server. Add **any OpenAI-compatible provider** — OpenAI, DeepSeek, Groq, OpenRouter, or a local Ollama server — with a **live model picker** that fetches the real model list. Fallback chain: custom → OpenRouter → Groq → Gemini.
 
 ### 📤 Export
-Markdown, PDF, or sync to **Obsidian** / **Notion** with `[[Wiki-Links]]`.
+Markdown, PDF, or sync to **Obsidian** / **Notion** with auto-generated `[[Wiki-Links]]`.
+
+---
 
 ## Quick Start
 
-### Prerequisites
-- Node.js 18+
-- An AI API key (see [BYOK](#bring-your-own-keys))
-
-### Install & run
 ```bash
 git clone https://github.com/sharadvc/synop.git
 cd synop
 npm install
 npx prisma generate
-npx prisma db push          # creates the SQLite database
-cp .env.example .env.local  # add your keys
+npx prisma db push        # creates the SQLite database
+cp .env.example .env.local  # add your AI key
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open **http://localhost:3000** — the first time you enter the dashboard you'll pick your persona.
 
-> The first time you open the dashboard you'll pick your persona. Change it anytime in **Settings → Your Role**.
+> **Requirements:** Node.js 18+, and an AI API key. The easiest path is OpenRouter (free models) or any OpenAI-compatible key — see below.
 
-## Bring Your Own Keys
+### Add an AI key (BYOK)
 
-Keys are entered in **Settings** and stored in your browser — nothing leaves your machine except the requests to your chosen provider.
-
-| Provider | How to configure |
+| Where | What |
 |---|---|
-| **Custom (recommended)** | Settings → Custom AI Providers → paste any OpenAI-compatible base URL + key → **Fetch live models** → pick. Works with OpenAI, DeepSeek, Ollama, Together, OpenRouter, anything. |
-| Gemini / Groq / OpenRouter | Settings → Bring Your Own Keys |
-| YouTube Data API v3 | Required for reliable **playlist + channel** fetching. Free key from Google Cloud Console → set `YOUTUBE_API_KEY`. |
+| **Settings → Custom AI Providers** | Paste any OpenAI-compatible base URL + key → **Fetch live models** → pick. Works with OpenAI, DeepSeek, Ollama, Together, OpenRouter, anything. |
+| **Settings → Bring Your Own Keys** | Gemini / Groq / OpenRouter keys |
+| **`YOUTUBE_API_KEY`** | Free YouTube Data API v3 key — required for reliable **playlist** and **channel watchlist** fetching. |
+
+Keys are stored in your browser's local storage and sent per-request — nothing else leaves your machine.
+
+---
 
 ## Tech Stack
 
-- **Framework**: Next.js 16 (App Router, Turbopack)
-- **Styling**: Tailwind CSS v4 + glassmorphism
-- **Database**: Prisma + SQLite (local, zero-config)
-- **AI**: any OpenAI-compatible endpoint, via a provider-fallback chain with deterministic no-LLM fallbacks
-- **Persona engine**: prompt tailoring + per-persona summary storage + tab reordering
+- **Framework** — Next.js 16 (App Router, Turbopack)
+- **Styling** — Tailwind CSS v4, glassmorphism UI
+- **Database** — Prisma + SQLite (local, zero-config)
+- **AI** — any OpenAI-compatible endpoint via a provider-fallback chain, with deterministic no-LLM fallbacks so every feature always returns a result
+- **Persona engine** — prompt tailoring + per-persona summary storage + persona-specific tab layouts
+
+## Roadmap
+
+- [x] Persona-tailored content (student / researcher / creator)
+- [x] Cross-video Library + "ask your whole library"
+- [x] Spaced-repetition review in-app
+- [x] Channel watchlist with auto-summarize
+- [x] Custom AI providers (any endpoint)
+- [ ] Streaks & daily review nudge
+- [ ] Course progress tracking (lectures done, next-up, mastery)
+- [ ] Shareable public study decks
+- [ ] Self-hosted sync / optional accounts
 
 ## Contributing
 
-Contributions are welcome — docs, bug reports, features, translations.
-
-1. Fork the project
-2. Create a feature branch (`git checkout -b feat/your-feature`)
-3. Commit your changes
-4. Push and open a Pull Request
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome — bugs, docs, features, translations. See [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

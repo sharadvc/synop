@@ -1,6 +1,6 @@
 {
   "name": "synop",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -44,6 +44,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "playwright": "^1.62.1",
     "prisma": "6.19.3",
     "tailwindcss": "^4",
     "typescript": "^5"
