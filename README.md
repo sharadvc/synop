@@ -53,8 +53,12 @@ And because it's built for reliability: **every feature works even when AI provi
 | <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/dashboard-summaries.png" width="100%" /> | <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/dashboard-library.png" width="100%" /> |
 | **Channel watchlist** | **Settings — BYOK & custom providers** |
 | <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/dashboard-channels.png" width="100%" /> | <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/dashboard-settings.png" width="100%" /> |
-| **Video analysis (Topics)** | **Study Mode (flashcards)** |
-| <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/summary.png" width="100%" /> | <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/study-mode.png" width="100%" /> |
+| **Video analysis (Topics)** | **Notebook — handwritten study notes** |
+| <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/summary.png" width="100%" /> | <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/notebook.png" width="100%" /> |
+| **Study Mode (flashcards + review)** | **Research Report (researchers)** |
+| <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/study-mode.png" width="100%" /> | <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/research-report.png" width="100%" /> |
+| **Course progress (playlists)** | |
+| <img src="https://raw.githubusercontent.com/sharadvc/synop/main/public/screenshots/course-tracker.png" width="100%" /> | |
 
 ---
 
