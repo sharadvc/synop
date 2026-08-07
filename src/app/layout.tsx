@@ -32,19 +32,23 @@ export const metadata: Metadata = {
 
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { ClerkProvider } from "@clerk/nextjs";
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Optional auth: active only when Clerk keys are configured (e.g. deployed).
+  // Localhost / self-hosted runs stay open-source and key-free.
+  const clerkActive = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return (
     <html lang="en" suppressHydrationWarning>
       <head />
       <body className={`${inter.variable} ${instrumentSerif.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <LanguageProvider>
-            {children}
+            {clerkActive ? <ClerkProvider>{children}</ClerkProvider> : children}
           </LanguageProvider>
         </ThemeProvider>
       </body>

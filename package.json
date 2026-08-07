@@ -7,12 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:push:pg": "prisma db push --schema prisma/schema.postgres.prisma",
+    "db:generate:pg": "prisma generate --schema prisma/schema.postgres.prisma"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.24",
     "@ai-sdk/openai": "^4.0.20",
     "@base-ui/react": "^1.6.0",
+    "@clerk/nextjs": "^7.7.1",
     "@distube/ytdl-core": "^4.16.12",
     "@prisma/client": "6.19.3",
     "@prisma/config": "^7.9.0",

@@ -3,6 +3,9 @@ import Link from 'next/link';
 import { useTheme } from "next-themes";
 import { Moon, Sun, ChevronDown, Globe } from "lucide-react";
 import { useEffect, useRef, useState } from 'react';
+import ClerkAuth from '@/components/ClerkAuth';
+
+const clerkActive = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 
 export default function Navbar() {
@@ -51,6 +54,8 @@ export default function Navbar() {
           <Link href="/dashboard">
             <span className="text-[13px] font-bold text-foreground bg-accent px-4 py-2 rounded-full hover:bg-accent/80">Dashboard</span>
           </Link>
+
+          {clerkActive && <ClerkAuth />}
         </div>
       </div>
     </nav>

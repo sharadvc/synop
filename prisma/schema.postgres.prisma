@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Summary {
+  id               String   @id @default(cuid())
+  videoId          String
+  language         String   @default("English")
+  title            String
+  channel          String
+  duration         String
+  status           String   @default("Completed")
+  executiveSummary String
+  quotes           String
+  resources        String
+  verdict          String
+  biasAnalysis     String?
+  frameworks       String?
+  entities         String?
+  mindMap          String?
+  folderId         String?
+  folder           Folder?  @relation(fields: [folderId], references: [id])
+  tags             Tag[]
+  notes            String?
+  transcript       String?
+  // Phase 2: Next-Gen features (stored as JSON strings)
+  signalDensity    String?
+  topicClusters    String?
+  debateMatrix     String?
+  freshness        String?
+  entityGraph      String?
+  persona          String   @default("general")
+  createdAt        DateTime @default(now())
+
+  @@unique([videoId, language, persona])
+}
+
+model Folder {
+  id        String    @id @default(cuid())
+  name      String
+  color     String?   @default("gray")
+  summaries Summary[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  color     String?   @default("blue")
+  summaries Summary[]
+  createdAt DateTime  @default(now())
+}
+
+model ChannelWatch {
+  id            String    @id @default(cuid())
+  channelId     String    @unique
+  title         String
+  handle        String?
+  avatar        String?
+  autoSummarize Boolean   @default(true)
+  lastCheckedAt DateTime?
+  lastVideoId   String?
+  createdAt     DateTime  @default(now())
+}
+
+model SharedDeck {
+  id        String   @id @default(cuid())
+  title     String
+  sourceUrl String?
+  deck      String
+  views     Int      @default(0)
+  createdAt DateTime @default(now())
+}
