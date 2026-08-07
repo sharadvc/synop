@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu, Radio, Cpu, RefreshCw, Sparkles, Sun } from "lucide-react";
+import { ArrowRight, Play, Search, LayoutDashboard, Folder, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu, Radio, Cpu, RefreshCw, Sparkles, Sun, Layers } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { getDashboardData } from "@/actions/dashboard";
@@ -8,6 +8,7 @@ import { createFolder, deleteFolder, assignToFolder } from "@/actions/folders";
 import { useLanguage } from "@/context/LanguageContext";
 import ChannelsPanel from "@/components/ChannelsPanel";
 import BriefingPanel from "@/components/BriefingPanel";
+import LibraryPanel from "@/components/LibraryPanel";
 import { aiHeaders } from "@/lib/client-ai";
 import { PERSONAS, PERSONA_LIST, getPersona, savePersona, personaDef, type PersonaId } from "@/lib/persona";
 
@@ -95,8 +96,8 @@ export default function DashboardPage() {
   const tabs = [
     { name: "Briefing", icon: <Sun className="w-4 h-4" /> },
     { name: "Summaries", icon: <Folder className="w-4 h-4" /> },
+    { name: "Library", icon: <Layers className="w-4 h-4" /> },
     { name: "Channels", icon: <Radio className="w-4 h-4" /> },
-    { name: "Chats", icon: <MessageSquare className="w-4 h-4" /> },
     { name: "Settings", icon: <Settings className="w-4 h-4" /> },
   ];
 
@@ -650,8 +651,8 @@ export default function DashboardPage() {
             <ChannelsPanel language={language} />
           )}
 
-          {activeTab === "Chats" && (
-            <DashboardChat summaries={summaries} />
+          {activeTab === "Library" && (
+            <LibraryPanel />
           )}
 
 
@@ -974,190 +975,6 @@ export default function DashboardPage() {
             </div>
           )}
        </div>
-    </div>
-  );
-}
-
-// ---- Fully functional Dashboard Chat component ----
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-
-function DashboardChat({ summaries }: { summaries: any[] }) {
-  const [selectedVideoId, setSelectedVideoId] = useState<string | null>('global');
-  const [messages, setMessages] = useState<{id: string; role: 'user' | 'assistant'; content: string}[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const selectedSummary = selectedVideoId === 'global' ? { title: 'Global Search', channel: 'Search across your entire library' } : summaries.find(s => s.videoId === selectedVideoId);
-
-  const handleSelectVideo = (videoId: string) => {
-    setSelectedVideoId(videoId);
-    setMessages([]);
-    setError(null);
-  };
-
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isLoading || !selectedVideoId) return;
-
-    const userMsg = { id: Date.now().toString(), role: 'user' as const, content: text };
-    const updated = [...messages, userMsg];
-    setMessages(updated);
-    setInput('');
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: aiHeaders(),
-        body: JSON.stringify({
-          messages: updated.map(m => ({ role: m.role, content: m.content })),
-          videoId: selectedVideoId,
-          persona: getPersona(),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Chat request failed');
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: data.reply }]);
-    } catch (err: any) {
-      setError(err.message || 'Failed to send message');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-260px)] min-h-[500px] animate-rise stagger-3">
-      {/* Chats List Pane */}
-      <div className="w-full lg:w-80 flex flex-col glass border border-border/50 rounded-3xl shadow-xl shadow-foreground/5 overflow-hidden shrink-0">
-        <div className="p-6 border-b border-border/50 bg-foreground/[0.02] font-bold flex justify-between items-center text-sm">
-          Your Summaries
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {summaries.length === 0 && (
-            <div className="text-center text-foreground/40 text-sm mt-10 px-4">
-              No summaries yet. Summarize a video first to start chatting!
-            </div>
-          )}
-          <div
-            onClick={() => handleSelectVideo('global')}
-            className={`p-4 rounded-2xl cursor-pointer transition-all ${
-              selectedVideoId === 'global'
-                ? 'bg-primary/10 border border-primary/20 shadow-sm'
-                : 'hover:bg-foreground/5 border border-transparent'
-            }`}
-          >
-            <div className="text-[13px] font-bold text-primary truncate flex items-center gap-2">
-              <Search className="w-3 h-3" /> Global Search
-            </div>
-            <div className="text-[11px] text-foreground/50 mt-1.5 truncate font-medium">Ask about all videos</div>
-          </div>
-          {summaries.map(s => (
-            <div
-              key={s.id}
-              onClick={() => handleSelectVideo(s.videoId)}
-              className={`p-4 rounded-2xl cursor-pointer transition-all ${
-                selectedVideoId === s.videoId
-                  ? 'bg-foreground/5 border border-border/50 shadow-sm'
-                  : 'hover:bg-foreground/5 border border-transparent'
-              }`}
-            >
-              <div className="text-[13px] font-bold text-foreground truncate">{s.title}</div>
-              <div className="text-[11px] text-foreground/50 mt-1.5 truncate font-medium">{s.channel}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Chat Window Pane */}
-      <div className="flex-1 flex flex-col glass border border-border/50 rounded-3xl shadow-xl shadow-foreground/5 overflow-hidden relative">
-        {selectedSummary ? (
-          <>
-            {/* Chat Header */}
-            <div className="p-4 border-b border-border/50 bg-foreground/[0.02]">
-              <div className="text-[13px] font-bold truncate">{selectedSummary.title}</div>
-              <div className="text-[11px] text-foreground/50 font-medium">{selectedSummary.channel}</div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-8 space-y-6">
-              {messages.length === 0 && (
-                <div className="text-center text-foreground/30 text-sm mt-16">
-                  <Zap className="w-8 h-8 mx-auto mb-4 text-foreground/20" />
-                  <p className="font-bold text-foreground/40">Ask anything about this video</p>
-                  <p className="mt-1">Timestamps, key points, deeper analysis...</p>
-                </div>
-              )}
-              {messages.map(m => (
-                <div key={m.id} className="flex gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-xs font-bold shadow-sm ${
-                    m.role === 'user'
-                      ? 'glass border border-border/50'
-                      : 'bg-foreground text-background shadow-lg shadow-foreground/20'
-                  }`}>
-                    {m.role === 'user' ? 'U' : <Zap className="w-4 h-4" strokeWidth={2} />}
-                  </div>
-                  <div className={`p-5 rounded-3xl rounded-tl-sm text-[14px] font-medium max-w-[80%] shadow-sm ${
-                    m.role === 'user'
-                      ? 'bg-foreground/5 border border-border/20 text-foreground'
-                      : 'glass border border-border/50 text-foreground leading-relaxed prose prose-sm prose-p:leading-relaxed'
-                  }`}>
-                    {m.role === 'user' ? m.content : <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>}
-                  </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex gap-4">
-                  <div className="w-10 h-10 rounded-full bg-foreground flex items-center justify-center shrink-0 text-background shadow-lg shadow-foreground/20">
-                    <Zap className="w-4 h-4 animate-pulse" strokeWidth={2} />
-                  </div>
-                  <div className="glass border border-border/50 p-5 rounded-3xl rounded-tl-sm flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                </div>
-              )}
-              {error && (
-                <div className="bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl p-4 text-sm">
-                  {error}
-                </div>
-              )}
-            </div>
-
-            {/* Input */}
-            <div className="p-6 border-t border-border/50 bg-foreground/[0.02]">
-              <form onSubmit={handleSend} className="relative max-w-3xl mx-auto">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  placeholder="Ask anything about this summary..."
-                  className="w-full h-14 glass border border-border/50 rounded-2xl pl-5 pr-14 text-[14px] font-medium outline-none focus:border-foreground/30 focus:ring-4 focus:ring-foreground/5 shadow-sm transition-all placeholder:text-foreground/30"
-                />
-                <button
-                  type="submit"
-                  disabled={isLoading || !input.trim()}
-                  className="absolute right-2 top-2 w-10 h-10 bg-foreground rounded-xl flex items-center justify-center text-background hover:scale-105 transition-transform shadow-lg shadow-foreground/10 disabled:opacity-50 disabled:hover:scale-100"
-                >
-                  <Send className="w-4 h-4" strokeWidth={1.5} />
-                </button>
-              </form>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-foreground/30 text-sm">
-            <div className="text-center">
-              <MessageSquare className="w-12 h-12 mx-auto mb-4 text-foreground/15" />
-              <p className="font-bold text-foreground/40">Select a summary to start chatting</p>
-              <p className="mt-1">Pick a video from the left panel</p>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
