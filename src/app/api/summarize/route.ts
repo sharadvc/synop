@@ -15,11 +15,25 @@ const summarySchema = z.object({
   verdict: z.string(),
 });
 
+/** Read the Phase 2 fields off a stored Summary row (JSON strings -> objects). */
+function phase2FromSummary(s: any) {
+  const parse = (raw: string | null) => {
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  };
+  return {
+    signalDensity: parse(s.signalDensity),
+    topicClusters: parse(s.topicClusters),
+    debateMatrix: parse(s.debateMatrix),
+    freshness: parse(s.freshness),
+    entityGraph: parse(s.entityGraph),
+  };
+}
+
 const MODELS = [
-  "google/gemini-2.0-flash-lite-preview-02-05:free",
-  "google/gemma-2-9b-it:free",
-  "meta-llama/llama-3.1-8b-instruct:free",
-  "microsoft/phi-3-mini-128k-instruct:free"
+  "google/gemma-4-26b-a4b-it:free",
+  "openai/gpt-oss-20b:free",
+  "google/gemma-4-31b-it:free",
 ];
 
 function buildSummaryPrompt(language: string = 'English', customPrompt?: string) {
@@ -46,7 +60,6 @@ THE PIPELINE:
 - [The Critique] -> "biasAnalysis": 3-5 points identifying any underlying biases, logical fallacies, or unproven assumptions the speaker relies on. Challenge the speaker.
 - [The Extractor] -> "frameworks": Extract ALL mental models, frameworks, or step-by-step systems discussed (provide "name" and "description").
 - [The Extractor] -> "entities": Notable people, companies, or scientific concepts (provide "type" e.g., "Person"/"Company", and "name").
-- [The Structurer] -> "mindMap": A valid Mermaid.js graph code (e.g. graph TD) mapping the core concepts of the video. Just the raw Mermaid code string without backticks.
 - [The Synthesizer] -> "verdict": A brutal, 1-2 sentence final assessment of the core value provided.
 
 JSON SCHEMA:
@@ -57,7 +70,6 @@ JSON SCHEMA:
   "biasAnalysis": ["...", "..."],
   "frameworks": [{"name": "...", "description": "..."}],
   "entities": [{"type": "...", "name": "..."}],
-  "mindMap": "graph TD\\nA[Concept] --> B[Detail]",
   "verdict": "..."
 }`;
 }
@@ -261,6 +273,7 @@ export async function POST(req: Request) {
          videoId,
          meta: { title: existingSummary.title, author_name: existingSummary.channel, thumbnail_url: "" },
          notes: existingSummary.notes || null,
+         ...phase2FromSummary(existingSummary),
          summary: {
             executiveSummary: existingSummary.executiveSummary,
             quotes: JSON.parse(existingSummary.quotes),
@@ -307,6 +320,7 @@ export async function POST(req: Request) {
             entities: JSON.stringify(summary.entities || []),
             mindMap: summary.mindMap || "",
             verdict: summary.verdict || "No verdict provided.",
+            transcript: transcript ? transcript.substring(0, 100000) : null,
           }
         });
 
@@ -322,6 +336,11 @@ export async function POST(req: Request) {
       transcript: transcript ? transcript.substring(0, 3000) : null,
       summary,
       notes: null,
+      signalDensity: null,
+      topicClusters: null,
+      debateMatrix: null,
+      freshness: null,
+      entityGraph: null,
       aiError,
     });
 

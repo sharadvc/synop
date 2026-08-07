@@ -125,7 +125,7 @@ Verdict: ${summary.verdict}
           apiKey: openRouterKey,
         });
         const result = await generateText({
-          model: openRouter('google/gemini-2.0-flash-lite-preview-02-05:free'),
+          model: openRouter('google/gemma-4-26b-a4b-it:free'),
           system: systemPrompt,
           messages: chatMessages,
           temperature: 0.7,

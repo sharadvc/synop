@@ -1,7 +1,7 @@
 "use client";
 
 import Navbar from "@/components/Navbar";
-import { Copy, Download, Share2, Clock, CheckCircle2, Loader2, AlertCircle, FileText, ArrowLeft, Lightbulb, ListTodo, Bookmark, Cpu, Quote, BrainCircuit, Boxes, Scale, Target, PenTool, Video, GraduationCap } from "lucide-react";
+import { Copy, Download, Share2, Clock, CheckCircle2, Loader2, AlertCircle, FileText, ArrowLeft, Lightbulb, ListTodo, Bookmark, Cpu, Quote, BrainCircuit, Boxes, Scale, Target, PenTool, Video, GraduationCap, Gauge, Tags, Gavel, ShieldCheck, Database, RefreshCw, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -16,6 +16,7 @@ import { MessageSquare, Send, X, ExternalLink, Play, Pause, Network } from 'luci
 import dynamic from 'next/dynamic';
 
 const MermaidGraph = dynamic(() => import('@/components/MermaidGraph'), { ssr: false });
+import { entityGraphToMermaid } from '@/lib/phase2/entityGraph';
 
 interface SummaryData {
   executiveSummary: string;
@@ -34,8 +35,53 @@ interface ApiResponse {
   transcript: string | null;
   summary: SummaryData | null;
   notes: string | null;
+  signalDensity?: SignalDensityData | null;
+  topicClusters?: TopicClusterData[] | null;
+  debateMatrix?: DebateMatrixData | null;
+  freshness?: FreshnessData[] | null;
+  entityGraph?: EntityGraphData | null;
   aiError: string | null;
   error?: string;
+}
+
+interface EntityGraphData {
+  nodes: { id: string; name: string; type: string; degree: number; mentions: number }[];
+  edges: { source: string; target: string; weight: number }[];
+}
+
+// ── Phase 2 (next-gen) payload shapes ─────────────────────────────────────
+interface SignalDensityData {
+  density_score: number;
+  value_minutes: number;
+  total_minutes: number;
+  high_signal_transcript: string;
+  removed_segments: { type: string; count: number; approx_minutes: number }[];
+}
+
+interface TopicClusterData {
+  topic: string;
+  summary: string;
+  count: number;
+}
+
+interface DebateMatrixData {
+  multiSpeaker: boolean;
+  speakers: { name: string; stance: string; claims: string[] }[];
+  contentions: {
+    topic: string;
+    speaker_a: string;
+    speaker_b: string;
+    point_of_contention: string;
+    alignment: 'AGREE' | 'DISAGREE';
+  }[];
+}
+
+interface FreshnessData {
+  claim: string;
+  entity: string;
+  status: 'VALIDATED' | 'CONTEXT_CHANGED' | 'DEBUNKED_OUTDATED';
+  note: string;
+  sources: string[];
 }
 
 function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
@@ -80,6 +126,61 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [audioProgress, setAudioProgress] = useState<string>('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
+
+  // ── Phase 2: progressive enrichment state ───────────────────────────────
+  const [signalDensity, setSignalDensity] = useState<SignalDensityData | null>(null);
+  const [topicClusters, setTopicClusters] = useState<TopicClusterData[] | null>(null);
+  const [debateMatrix, setDebateMatrix] = useState<DebateMatrixData | null>(null);
+  const [freshness, setFreshness] = useState<FreshnessData[] | null>(null);
+  const [entityGraph, setEntityGraph] = useState<EntityGraphData | null>(null);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichError, setEnrichError] = useState<string | null>(null);
+  const enrichStartedRef = useRef<string>('');
+
+  // ── Sync-to-Knowledge-Base modal state ──────────────────────────────────
+  const [showSync, setShowSync] = useState(false);
+  const [syncingObsidian, setSyncingObsidian] = useState(false);
+  const [obsidianResult, setObsidianResult] = useState<string | null>(null);
+
+  const runEnrich = async () => {
+    setEnriching(true);
+    setEnrichError(null);
+    try {
+      const res = await fetch('/api/enrich', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-gemini-key': localStorage.getItem('gemini_key') || '',
+          'x-groq-key': localStorage.getItem('groq_key') || '',
+          'x-openrouter-key': localStorage.getItem('openrouter_key') || '',
+        },
+        body: JSON.stringify({ videoId: id, language }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Enrichment failed');
+      setSignalDensity(j.signalDensity ?? null);
+      setTopicClusters(j.topicClusters ?? null);
+      setDebateMatrix(j.debateMatrix ?? null);
+      setFreshness(j.freshness ?? null);
+      setEntityGraph(j.entityGraph ?? null);
+    } catch (err: any) {
+      console.error('[enrich]', err);
+      setEnrichError(err.message || 'Enrichment failed');
+    } finally {
+      setEnriching(false);
+    }
+  };
+
+  // After the core summary loads, progressively compute the Phase 2 features.
+  useEffect(() => {
+    if (loading || !data) return;
+    const allPresent = signalDensity && topicClusters && debateMatrix && freshness;
+    if (allPresent) return;
+    if (enrichStartedRef.current === id + '|' + language) return;
+    enrichStartedRef.current = id + '|' + language;
+    runEnrich();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, data, id, language]);
 
   // YouTube Player State
   const [youtubePlayer, setYoutubePlayer] = useState<any>(null);
@@ -152,6 +253,25 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     if (!data?.summary) return "";
     const s = data.summary;
     let md = `# ${data.meta?.title || 'Summary'}\n\n## Executive Summary\n${s.executiveSummary || ''}\n\n`;
+    if (signalDensity) {
+      md += `## Signal Density: ${signalDensity.density_score}%\n`;
+      md += `> ${signalDensity.value_minutes} minutes of real value from a ${signalDensity.total_minutes}-minute video.\n\n`;
+      if (signalDensity.removed_segments.length) {
+        md += signalDensity.removed_segments.map(r => `- Removed ${r.approx_minutes} min of ${r.type.replace(/_/g, ' ').toLowerCase()}`).join('\n') + '\n\n';
+      }
+    }
+    if (topicClusters && topicClusters.length > 0) {
+      md += `## Topics\n`;
+      topicClusters.forEach(t => { md += `### ${t.topic}\n${t.summary}\n\n`; });
+    }
+    if (freshness && freshness.length > 0) {
+      md += `## Freshness Check\n`;
+      freshness.forEach(f => {
+        const badge = f.status === 'DEBUNKED_OUTDATED' ? '🔴' : f.status === 'CONTEXT_CHANGED' ? '🟡' : '🟢';
+        md += `- ${badge} ${f.claim} — ${f.note}\n`;
+      });
+      md += `\n`;
+    }
     if (s.quotes && Array.isArray(s.quotes)) {
       md += `## Quotes\n${s.quotes.map(q => `> ${q}`).join('\n\n')}\n\n`;
     }
@@ -302,6 +422,40 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     }
   };
 
+  const handleSyncObsidian = async () => {
+    setSyncingObsidian(true);
+    setObsidianResult(null);
+    try {
+      const res = await fetch('/api/export/obsidian', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: id, language }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Obsidian export failed');
+
+      if (data.wroteToVault) {
+        setObsidianResult(`Saved to vault → ${data.path}`);
+      } else {
+        // No server-side vault path configured → download the .md file.
+        const blob = new Blob([data.markdown], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.filename || 'summary.md';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setObsidianResult('Downloaded — drop it into any Obsidian vault folder.');
+      }
+    } catch (err: any) {
+      setObsidianResult(err.message || 'Obsidian export failed');
+    } finally {
+      setSyncingObsidian(false);
+    }
+  };
+
   const handlePlayAudio = async () => {
     if (!data?.summary?.executiveSummary) return;
     
@@ -381,10 +535,15 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
        body: JSON.stringify({ url: `https://youtube.com/watch?v=${id}`, language, customPrompt }) 
     })
       .then(r => r.json())
-      .then(j => { 
-        if (j.error) setError(j.error); 
+      .then(j => {
+        if (j.error) setError(j.error);
         else {
           setData(j);
+          setSignalDensity(j.signalDensity ?? null);
+          setTopicClusters(j.topicClusters ?? null);
+          setDebateMatrix(j.debateMatrix ?? null);
+          setFreshness(j.freshness ?? null);
+          setEntityGraph(j.entityGraph ?? null);
         }
       })
       .catch(e => setError(e.message))
@@ -428,11 +587,12 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const studyDeck = useMemo(() => {
     if (!summary) return [] as { front: string; back: string }[];
     return [
+      ...(topicClusters ?? []).map((t) => ({ front: `Topic: ${t.topic}`, back: t.summary })),
       ...(summary.frameworks ?? []).map(f => ({ front: f.name, back: f.description })),
       ...summary.quotes.map((q, i) => ({ front: `Quote ${i + 1}`, back: q })),
       ...(summary.biasAnalysis ?? []).map((b, i) => ({ front: `Critique ${i + 1}`, back: b })),
     ];
-  }, [summary]);
+  }, [summary, topicClusters]);
 
   const studyQuiz = useMemo(() => {
     if (!summary) return [] as { question: string; correct: string; options: string[] }[];
@@ -446,12 +606,26 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   }, [summary]);
 
   const tabs = [
-    { id: "mindmap", label: "Knowledge Graph", icon: <Network className="w-4 h-4" strokeWidth={1.5} /> },
+    { id: "mindmap", label: "Entity Graph", icon: <Network className="w-4 h-4" strokeWidth={1.5} /> },
+    { id: "topics", label: "Topics", icon: <Tags className="w-4 h-4" strokeWidth={1.5} /> },
+    { id: "debate", label: "Debate", icon: <Gavel className="w-4 h-4" strokeWidth={1.5} /> },
     { id: "frameworks", label: "Frameworks", icon: <Boxes className="w-4 h-4" strokeWidth={1.5} /> },
     { id: "bias", label: "Bias & Critique", icon: <Scale className="w-4 h-4" strokeWidth={1.5} /> },
     { id: "quotes", label: "Quotes", icon: <Quote className="w-4 h-4" strokeWidth={1.5} /> },
     { id: "notes", label: "Study Mode", icon: <GraduationCap className="w-4 h-4" strokeWidth={1.5} /> }
   ];
+
+  const [selectedTopic, setSelectedTopic] = useState(0);
+
+  // Real entity knowledge graph — rendered deterministically from co-occurrence
+  // data computed at enrich time (no LLM hallucination).
+  const entityMermaid = useMemo(
+    () => entityGraphToMermaid(entityGraph?.nodes ?? [], entityGraph?.edges ?? []),
+    [entityGraph]
+  );
+
+  // Keep the selected topic in range if the cluster list shrinks.
+  const activeTopicIdx = Math.min(selectedTopic, Math.max(0, (topicClusters?.length || 1) - 1));
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
@@ -530,18 +704,12 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                       PDF Report
                     </button>
                     <button
-                      onClick={handleExportNotion}
-                      disabled={exportingNotion}
-                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider text-foreground/60 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-all border border-transparent hover:border-border/50 disabled:opacity-40"
+                      onClick={() => setShowSync(true)}
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider text-foreground/60 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-all border border-transparent hover:border-border/50"
                     >
-                      {exportingNotion ? <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={2} /> : <ExternalLink className="w-3.5 h-3.5" strokeWidth={2} />}
-                      {exportingNotion ? 'Exporting...' : 'Notion'}
+                      <Database className="w-3.5 h-3.5" strokeWidth={2} />
+                      Sync
                     </button>
-                    {notionResult && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/50 px-2 py-1 rounded-lg bg-foreground/5">
-                        {notionResult}
-                      </span>
-                    )}
                   </div>
                 )}
               </div>
@@ -576,6 +744,58 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                   <h1 className="text-3xl md:text-5xl font-serif text-foreground leading-[1.1] tracking-tight">{title}</h1>
                 </div>
               </div>
+
+              {/* Phase 2: Signal-to-Noise Density badge */}
+              {(signalDensity || enriching || enrichError) && (
+                <div className="animate-rise stagger-3">
+                  {signalDensity ? (
+                    <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-primary/5 p-6 md:p-8 shadow-lg shadow-primary/5">
+                      <div className="flex flex-col md:flex-row md:items-center gap-6">
+                        <div className="flex items-center gap-5 shrink-0">
+                          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                            <Gauge className="w-8 h-8 text-primary" strokeWidth={1.5} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/70 mb-1">Signal Density</p>
+                            <div className="flex items-end gap-2">
+                              <span className="text-5xl font-extrabold font-serif text-foreground leading-none">{signalDensity.density_score}%</span>
+                              <span className="text-xs font-bold text-foreground/50 pb-1">high-signal</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <p className="text-[15px] font-medium text-foreground/80">
+                            We extracted the <span className="font-bold text-foreground">{signalDensity.value_minutes}</span> minutes of actual value
+                            from this <span className="font-bold text-foreground">{signalDensity.total_minutes}</span>-minute video.
+                          </p>
+                          {signalDensity.removed_segments.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {signalDensity.removed_segments.map((seg, i) => (
+                                <span key={i} className="px-2.5 py-1 rounded-full bg-foreground/5 border border-border/50 text-[11px] font-bold text-foreground/60">
+                                  {seg.type.replace(/_/g, ' ').toLowerCase()}: {seg.approx_minutes} min saved
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : enriching ? (
+                    <div className="h-24 rounded-3xl border border-border/50 bg-foreground/5 animate-pulse flex items-center gap-3 px-6">
+                      <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                      <span className="text-sm font-bold text-foreground/50">Calculating signal density...</span>
+                    </div>
+                  ) : (
+                    <div className="h-24 rounded-3xl border border-dashed border-border/60 bg-foreground/5 flex items-center gap-3 px-6">
+                      <AlertCircle className="w-5 h-5 text-destructive/70 shrink-0" />
+                      <span className="text-sm font-medium text-foreground/60">Signal density couldn't be computed right now.</span>
+                      <button onClick={() => { enrichStartedRef.current = ''; runEnrich(); }} className="ml-auto shrink-0 h-9 px-4 rounded-xl text-xs font-bold text-primary border border-primary/30 hover:bg-primary/10 transition-colors flex items-center gap-2">
+                        <RefreshCw className="w-3.5 h-3.5" /> Retry
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {data.aiError && <div className="flex flex-col items-center justify-center py-20 text-muted-foreground text-center space-y-4">
                       <AlertCircle className="w-12 h-12 text-destructive/50" />
@@ -635,10 +855,204 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
 
                   {/* Tab Content */}
                   <div className="min-h-[400px] animate-rise stagger-5">
-                    {activeTab === "mindmap" && summary.mindMap && (
+                    {activeTab === "mindmap" && (
                       <div className="w-full flex flex-col gap-4">
-                        <div className="bg-foreground text-background px-4 py-2 rounded-xl text-xs font-bold uppercase w-fit tracking-wide shadow-md">AI Knowledge Graph</div>
-                        <MermaidGraph chart={summary.mindMap} />
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div>
+                            <div className="bg-foreground text-background px-4 py-2 rounded-xl text-xs font-bold uppercase w-fit tracking-wide shadow-md">Entity Graph</div>
+                            <p className="text-sm text-foreground/50 mt-3 max-w-xl">Entities that were actually mentioned together in the video — edge weight = co-occurrence frequency. No hallucinated links.</p>
+                          </div>
+                          {enrichError && !entityGraph && (
+                            <button onClick={() => { enrichStartedRef.current = ''; runEnrich(); }} className="h-9 px-4 rounded-xl text-xs font-bold text-primary border border-primary/30 hover:bg-primary/10 transition-colors flex items-center gap-2">
+                              <RefreshCw className="w-3.5 h-3.5" /> Retry Analysis
+                            </button>
+                          )}
+                        </div>
+
+                        {!entityGraph && enriching && (
+                          <div className="h-64 rounded-2xl bg-foreground/5 border border-border/50 animate-pulse flex items-center justify-center gap-3">
+                            <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                            <span className="text-sm font-bold text-foreground/50">Mapping entity relationships...</span>
+                          </div>
+                        )}
+
+                        {entityGraph && entityGraph.nodes.length === 0 && (
+                          <div className="p-12 text-center glass border border-border/50 rounded-3xl">
+                            <Network className="w-12 h-12 text-foreground/20 mx-auto mb-4" />
+                            <p className="font-bold text-foreground">No connected entities found</p>
+                            <p className="text-sm text-foreground/50 mt-1 max-w-md mx-auto">This video didn't surface enough distinct entities that co-occur to draw a meaningful graph.</p>
+                          </div>
+                        )}
+
+                        {entityMermaid && (
+                          <div className="flex flex-col gap-4">
+                            <MermaidGraph chart={entityMermaid} />
+                            <div className="flex flex-wrap gap-2 justify-center">
+                              {entityGraph!.nodes.slice(0, 12).map((n, i) => (
+                                <span key={i} className="px-2.5 py-1 rounded-full bg-foreground/5 border border-border/50 text-[11px] font-bold text-foreground/60">
+                                  {n.name} <span className="text-foreground/30 font-medium">×{n.mentions}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {activeTab === "topics" && (
+                      <div className="w-full space-y-8">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div>
+                            <h3 className="text-lg font-bold text-foreground flex items-center gap-2"><Tags className="w-5 h-5 text-primary" /> Topic Clusters</h3>
+                            <p className="text-sm text-foreground/50 mt-1">Content grouped by theme — not by timestamp. Click a topic to read its combined summary.</p>
+                          </div>
+                          {enrichError && (
+                            <button onClick={() => { enrichStartedRef.current = ''; runEnrich(); }} className="h-9 px-4 rounded-xl text-xs font-bold text-primary border border-primary/30 hover:bg-primary/10 transition-colors flex items-center gap-2">
+                              <RefreshCw className="w-3.5 h-3.5" /> Retry Analysis
+                            </button>
+                          )}
+                        </div>
+
+                        {!topicClusters && enriching && (
+                          <div className="space-y-4">
+                            {[1, 2, 3].map(i => (
+                              <div key={i} className="h-14 rounded-2xl bg-foreground/5 border border-border/50 animate-pulse" />
+                            ))}
+                          </div>
+                        )}
+
+                        {!topicClusters && !enriching && enrichError && (
+                          <div className="p-10 text-center glass border border-dashed border-border/60 rounded-3xl">
+                            <AlertCircle className="w-10 h-10 text-destructive/60 mx-auto mb-4" />
+                            <p className="font-bold text-foreground">Couldn't cluster this video's topics</p>
+                            <p className="text-sm text-foreground/50 mt-1 max-w-md mx-auto">{enrichError}</p>
+                            <button onClick={() => { enrichStartedRef.current = ''; runEnrich(); }} className="mt-5 h-10 px-5 bg-foreground text-background rounded-xl text-sm font-bold hover:opacity-90 transition-opacity flex items-center gap-2 mx-auto">
+                              <RefreshCw className="w-4 h-4" /> Try again
+                            </button>
+                          </div>
+                        )}
+
+                        {topicClusters && topicClusters.length === 0 && (
+                          <div className="p-10 text-center text-foreground/50 italic glass border border-border/50 rounded-3xl">No distinct topics detected in this video.</div>
+                        )}
+
+                        {topicClusters && topicClusters.length > 0 && (
+                          <>
+                            <div className="flex flex-wrap gap-2.5">
+                              {topicClusters.map((t, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => setSelectedTopic(i)}
+                                  className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all cursor-pointer ${activeTopicIdx === i ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-foreground/5 hover:bg-foreground/10 text-foreground/70 border border-border/40'}`}
+                                >
+                                  {t.topic}
+                                </button>
+                              ))}
+                            </div>
+                            {topicClusters[activeTopicIdx] && (
+                              <div className="glass border border-border/50 rounded-3xl p-8 shadow-sm">
+                                <div className="flex items-center gap-3 mb-4">
+                                  <h4 className="text-2xl font-bold font-serif text-foreground">{topicClusters[activeTopicIdx].topic}</h4>
+                                  <span className="text-[11px] font-bold text-foreground/40 px-2.5 py-1 rounded-full bg-foreground/5">{topicClusters[activeTopicIdx].count} chunks</span>
+                                </div>
+                                <p className="text-[15px] font-medium leading-relaxed text-foreground/80">{topicClusters[activeTopicIdx].summary}</p>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {activeTab === "debate" && (
+                      <div className="w-full space-y-8">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div>
+                            <h3 className="text-lg font-bold text-foreground flex items-center gap-2"><Gavel className="w-5 h-5 text-primary" /> Debate Matrix</h3>
+                            <p className="text-sm text-foreground/50 mt-1">Map each speaker's stance and see exactly where they agree or disagree.</p>
+                          </div>
+                          {enrichError && (
+                            <button onClick={() => { enrichStartedRef.current = ''; runEnrich(); }} className="h-9 px-4 rounded-xl text-xs font-bold text-primary border border-primary/30 hover:bg-primary/10 transition-colors flex items-center gap-2">
+                              <RefreshCw className="w-3.5 h-3.5" /> Retry Analysis
+                            </button>
+                          )}
+                        </div>
+
+                        {!debateMatrix && enriching && (
+                          <div className="space-y-4">
+                            {[1, 2].map(i => (
+                              <div key={i} className="h-32 rounded-2xl bg-foreground/5 border border-border/50 animate-pulse" />
+                            ))}
+                          </div>
+                        )}
+
+                        {!debateMatrix && !enriching && enrichError && (
+                          <div className="p-10 text-center glass border border-dashed border-border/60 rounded-3xl">
+                            <AlertCircle className="w-10 h-10 text-destructive/60 mx-auto mb-4" />
+                            <p className="font-bold text-foreground">Couldn't analyze the speakers</p>
+                            <p className="text-sm text-foreground/50 mt-1 max-w-md mx-auto">{enrichError}</p>
+                            <button onClick={() => { enrichStartedRef.current = ''; runEnrich(); }} className="mt-5 h-10 px-5 bg-foreground text-background rounded-xl text-sm font-bold hover:opacity-90 transition-opacity flex items-center gap-2 mx-auto">
+                              <RefreshCw className="w-4 h-4" /> Try again
+                            </button>
+                          </div>
+                        )}
+
+                        {debateMatrix && !debateMatrix.multiSpeaker && (
+                          <div className="p-10 text-center glass border border-border/50 rounded-3xl">
+                            <MessageSquare className="w-12 h-12 text-foreground/20 mx-auto mb-4" />
+                            <p className="font-bold text-foreground">Single speaker detected</p>
+                            <p className="text-sm text-foreground/50 mt-1 max-w-md mx-auto">This appears to be a solo monologue, so there's no debate to map. Videos with two or more speakers will get a full matrix here.</p>
+                          </div>
+                        )}
+
+                        {debateMatrix && debateMatrix.multiSpeaker && (
+                          <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {debateMatrix.speakers.map((sp, i) => (
+                                <div key={i} className="glass border border-border/50 rounded-3xl p-7 shadow-sm">
+                                  <h4 className="text-lg font-bold text-foreground flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-extrabold">{sp.name.charAt(0)}</div>
+                                    {sp.name}
+                                  </h4>
+                                  <p className="mt-3 text-sm font-medium text-foreground/70 leading-relaxed">{sp.stance}</p>
+                                  {sp.claims.length > 0 && (
+                                    <ul className="mt-4 space-y-2">
+                                      {sp.claims.map((c, j) => (
+                                        <li key={j} className="flex gap-2.5 text-[13px] font-medium text-foreground/70 leading-relaxed">
+                                          <Quote className="w-3.5 h-3.5 text-primary/60 mt-0.5 shrink-0" />
+                                          <span>{c}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+
+                            {debateMatrix.contentions.length > 0 && (
+                              <div className="glass border border-border/50 rounded-3xl overflow-hidden shadow-sm">
+                                <div className="px-7 py-5 border-b border-border/50 bg-foreground/[0.02] font-bold text-sm flex items-center gap-2">
+                                  <Scale className="w-4 h-4 text-primary" /> Points of Contention
+                                </div>
+                                <div className="divide-y divide-border/40">
+                                  {debateMatrix.contentions.map((c, i) => (
+                                    <div key={i} className="px-7 py-5">
+                                      <div className="flex items-start justify-between gap-4 flex-wrap">
+                                        <h5 className="text-[15px] font-bold text-foreground">{c.topic}</h5>
+                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${c.alignment === 'AGREE' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-500'}`}>
+                                          {c.alignment}
+                                        </span>
+                                      </div>
+                                      <div className="mt-3 rounded-2xl bg-foreground/5 p-4">
+                                        <p className="text-[11px] font-bold uppercase tracking-wider text-foreground/40 mb-1">{c.speaker_a} vs {c.speaker_b}</p>
+                                        <p className="text-[13px] font-medium text-foreground/80 leading-relaxed">{c.point_of_contention}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     )}
 
@@ -670,7 +1084,62 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                     )}
 
                     {activeTab === "quotes" && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-10">
+                        {/* Phase 2: Freshness Check */}
+                        {(freshness || enriching || enrichError) && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-4">
+                              <ShieldCheck className="w-4 h-4 text-primary" strokeWidth={1.5} />
+                              <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-[0.2em]">Freshness Check</h3>
+                              {enriching && !freshness && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary/60" />}
+                            </div>
+                            {freshness && freshness.length > 0 ? (
+                              <div className="space-y-3">
+                                {freshness.map((f, i) => {
+                                  const badge =
+                                    f.status === 'DEBUNKED_OUTDATED'
+                                      ? { label: 'Outdated', cls: 'bg-red-500/10 text-red-500 border-red-500/30', dot: 'bg-red-500' }
+                                      : f.status === 'CONTEXT_CHANGED'
+                                        ? { label: 'Context changed', cls: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30', dot: 'bg-yellow-500' }
+                                        : { label: 'Validated', cls: 'bg-green-500/10 text-green-600 border-green-500/30', dot: 'bg-green-500' };
+                                  return (
+                                    <div key={i} className="p-5 glass border border-border/50 rounded-2xl">
+                                      <div className="flex items-start justify-between gap-4 flex-wrap">
+                                        <p className="text-[14px] font-semibold text-foreground leading-relaxed flex-1">{f.claim}</p>
+                                        <span className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${badge.cls}`}>
+                                          <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} /> {badge.label}
+                                        </span>
+                                      </div>
+                                      <p className="mt-2 text-[13px] font-medium text-foreground/60 leading-relaxed">{f.note}</p>
+                                      {f.sources && f.sources.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                          {f.sources.map((src, j) => (
+                                            <a key={j} href={src} target="_blank" rel="noopener noreferrer" className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1">
+                                              <ExternalLink className="w-3 h-3" /> source {j + 1}
+                                            </a>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : enriching ? null : enrichError ? (
+                              <div className="p-5 glass border border-dashed border-border/60 rounded-2xl text-[13px] font-medium text-foreground/50 flex items-center justify-between gap-3 flex-wrap">
+                                <span>Couldn't fact-check claims right now.</span>
+                                <button onClick={() => { enrichStartedRef.current = ''; runEnrich(); }} className="h-8 px-3 rounded-lg text-xs font-bold text-primary border border-primary/30 hover:bg-primary/10 transition-colors flex items-center gap-1.5">
+                                  <RefreshCw className="w-3 h-3" /> Retry
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="p-5 glass border border-border/50 rounded-2xl text-[13px] font-medium text-foreground/50">
+                                No factual claims could be verified for this video.
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                         <div className="space-y-8">
                           <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-[0.2em] mb-6 flex items-center gap-3"><Quote className="w-4 h-4" strokeWidth={1.5} /> Notable Quotes</h3>
                           {summary.quotes.map((quote, i) => (
@@ -705,6 +1174,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                              ))}
                           </div>
                         </div>
+                      </div>
                       </div>
                     )}
 
@@ -936,6 +1406,63 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
               <MessageSquare className="w-6 h-6" />
             </motion.button>
           )}
+        </div>
+      )}
+
+      {/* Sync to Knowledge Base Modal */}
+      {showSync && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="glass border border-border/50 rounded-3xl p-8 shadow-2xl w-full max-w-lg mx-4 animate-rise">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Database className="w-5 h-5 text-primary" /> Sync to Knowledge Base
+              </h3>
+              <button onClick={() => setShowSync(false)} className="w-8 h-8 rounded-lg hover:bg-foreground/10 flex items-center justify-center transition-colors">
+                <X className="w-5 h-5 text-foreground/60" />
+              </button>
+            </div>
+            <p className="text-sm text-foreground/50 mb-6">Push this summary into your personal knowledge graph — entities become [[Wiki-Links]].</p>
+
+            <div className="space-y-3">
+              <div className="p-5 glass border border-border/50 rounded-2xl">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-foreground/5 flex items-center justify-center"><FileText className="w-5 h-5 text-foreground/60" /></div>
+                  <div>
+                    <h4 className="font-bold text-sm text-foreground">Export to Obsidian Vault</h4>
+                    <p className="text-xs text-foreground/50">Markdown with [[Wiki-Links]] — saved to your vault or downloaded.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSyncObsidian}
+                  disabled={syncingObsidian}
+                  className="mt-3 w-full h-11 bg-foreground text-background rounded-xl text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                >
+                  {syncingObsidian ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  {syncingObsidian ? 'Exporting...' : 'Export to Obsidian'}
+                </button>
+                {obsidianResult && <p className="mt-2 text-xs font-bold text-primary">{obsidianResult}</p>}
+              </div>
+
+              <div className="p-5 glass border border-border/50 rounded-2xl">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-foreground/5 flex items-center justify-center"><ExternalLink className="w-5 h-5 text-foreground/60" /></div>
+                  <div>
+                    <h4 className="font-bold text-sm text-foreground">Create Notion Database</h4>
+                    <p className="text-xs text-foreground/50">Full dossier (topics, entities, freshness) pushed to your Notion DB.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleExportNotion}
+                  disabled={exportingNotion}
+                  className="mt-3 w-full h-11 bg-foreground/5 border border-border/50 rounded-xl text-sm font-bold hover:bg-foreground/10 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                >
+                  {exportingNotion ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                  {exportingNotion ? 'Exporting...' : 'Export to Notion'}
+                </button>
+                {notionResult && <p className="mt-2 text-xs font-bold text-primary">{notionResult}</p>}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

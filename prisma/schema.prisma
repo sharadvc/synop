@@ -28,6 +28,12 @@ model Summary {
   tags             Tag[]
   notes            String?
   transcript       String?
+  // Phase 2: Next-Gen features (stored as JSON strings)
+  signalDensity    String?
+  topicClusters    String?
+  debateMatrix     String?
+  freshness        String?
+  entityGraph      String?
   createdAt        DateTime @default(now())
 }
 

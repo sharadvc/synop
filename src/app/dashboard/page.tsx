@@ -35,7 +35,7 @@ export default function DashboardPage() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
   
   // API Keys state
-  const [keys, setKeys] = useState({ gemini: "", groq: "", openrouter: "", notion: "", notionDb: "" });
+  const [keys, setKeys] = useState({ gemini: "", groq: "", openrouter: "", notion: "", notionDb: "", tavily: "" });
   const [keysLoaded, setKeysLoaded] = useState(false);
 
   const tabs = [
@@ -82,11 +82,12 @@ export default function DashboardPage() {
       openrouter: localStorage.getItem('openrouter_key') || "",
       notion: localStorage.getItem('notion_key') || "",
       notionDb: localStorage.getItem('notion_db') || "",
+      tavily: localStorage.getItem('tavily_key') || "",
     });
     setKeysLoaded(true);
   }, [language]);
 
-  const updateKey = (provider: 'gemini' | 'groq' | 'openrouter' | 'notion' | 'notionDb', val: string) => {
+  const updateKey = (provider: 'gemini' | 'groq' | 'openrouter' | 'notion' | 'notionDb' | 'tavily', val: string) => {
     setKeys(prev => ({ ...prev, [provider]: val }));
     const storageKey = provider === 'notion' ? 'notion_key' : provider === 'notionDb' ? 'notion_db' : `${provider}_key`;
     localStorage.setItem(storageKey, val);
@@ -843,6 +844,16 @@ export default function DashboardPage() {
                            <FileText className="w-4 h-4 text-foreground/50" /> Integrations
                          </h4>
                          <div className="space-y-4">
+                            <div>
+                               <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2">Tavily API Key (optional — for Freshness fact-checks)</label>
+                               <input
+                                  type="password"
+                                  placeholder="tvly-..."
+                                  value={keys.tavily}
+                                  onChange={e => updateKey('tavily', e.target.value)}
+                                  className="w-full h-12 glass border border-border/50 rounded-xl px-4 text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
+                               />
+                            </div>
                             <div>
                                <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2">Notion API Key</label>
                                <input 
