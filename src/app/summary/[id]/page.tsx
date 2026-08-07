@@ -60,6 +60,7 @@ interface SignalDensityData {
   total_minutes: number;
   high_signal_transcript: string;
   removed_segments: { type: string; count: number; approx_minutes: number }[];
+  heuristic?: boolean;
 }
 
 interface TopicClusterData {
@@ -734,17 +735,25 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                           </div>
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/70 mb-1">Signal Density</p>
-                            <div className="flex items-end gap-2">
-                              <span className="text-5xl font-extrabold font-serif text-foreground leading-none">{signalDensity.density_score}%</span>
-                              <span className="text-xs font-bold text-foreground/50 pb-1">high-signal</span>
-                            </div>
+                            {signalDensity.heuristic ? (
+                              <span className="text-lg font-bold text-foreground/60">Analysis unavailable</span>
+                            ) : (
+                              <div className="flex items-end gap-2">
+                                <span className="text-5xl font-extrabold font-serif text-foreground leading-none">{signalDensity.density_score}%</span>
+                                <span className="text-xs font-bold text-foreground/50 pb-1">high-signal</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex-1 space-y-2">
-                          <p className="text-[15px] font-medium text-foreground/80">
-                            We extracted the <span className="font-bold text-foreground">{signalDensity.value_minutes}</span> minutes of actual value
-                            from this <span className="font-bold text-foreground">{signalDensity.total_minutes}</span>-minute video.
-                          </p>
+                          {signalDensity.heuristic ? (
+                            <p className="text-[15px] font-medium text-foreground/80">Density classification couldn't run — showing the full transcript as your high-signal content.</p>
+                          ) : (
+                            <p className="text-[15px] font-medium text-foreground/80">
+                              We extracted the <span className="font-bold text-foreground">{signalDensity.value_minutes}</span> minutes of actual value
+                              from this <span className="font-bold text-foreground">{signalDensity.total_minutes}</span>-minute video.
+                            </p>
+                          )}
                           {signalDensity.removed_segments.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                               {signalDensity.removed_segments.map((seg, i) => (
@@ -973,10 +982,30 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                         )}
 
                         {debateMatrix && !debateMatrix.multiSpeaker && (
-                          <div className="p-10 text-center glass border border-border/50 rounded-3xl">
-                            <MessageSquare className="w-12 h-12 text-foreground/20 mx-auto mb-4" />
-                            <p className="font-bold text-foreground">Single speaker detected</p>
-                            <p className="text-sm text-foreground/50 mt-1 max-w-md mx-auto">This appears to be a solo monologue, so there's no debate to map. Videos with two or more speakers will get a full matrix here.</p>
+                          <div className="space-y-6">
+                            {debateMatrix.speakers[0]?.claims?.length > 0 ? (
+                              <div className="glass border border-border/50 rounded-3xl p-8 shadow-sm">
+                                <div className="flex items-center gap-2 mb-5">
+                                  <MessageSquare className="w-5 h-5 text-primary" />
+                                  <h4 className="text-lg font-bold text-foreground">Key claims — single speaker</h4>
+                                </div>
+                                <ul className="space-y-3">
+                                  {debateMatrix.speakers[0].claims.map((c, j) => (
+                                    <li key={j} className="flex gap-2.5 text-[14px] font-medium text-foreground/80 leading-relaxed">
+                                      <Quote className="w-3.5 h-3.5 text-primary/60 mt-0.5 shrink-0" />
+                                      <span>{c}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                                <p className="text-xs text-foreground/40 mt-5">Solo monologue — no debate to map, but these are the core claims to challenge.</p>
+                              </div>
+                            ) : (
+                              <div className="p-10 text-center glass border border-border/50 rounded-3xl">
+                                <MessageSquare className="w-12 h-12 text-foreground/20 mx-auto mb-4" />
+                                <p className="font-bold text-foreground">Single speaker detected</p>
+                                <p className="text-sm text-foreground/50 mt-1 max-w-md mx-auto">This appears to be a solo monologue, so there's no debate to map.</p>
+                              </div>
+                            )}
                           </div>
                         )}
 

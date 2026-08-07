@@ -11,6 +11,8 @@ export interface SignalDensity {
   high_signal_transcript: string;
   /** Breakdown of what was stripped away. */
   removed_segments: { type: string; count: number; approx_minutes: number }[];
+  /** True when the score is a heuristic fallback (provider unavailable). */
+  heuristic?: boolean;
 }
 
 export interface TopicCluster {

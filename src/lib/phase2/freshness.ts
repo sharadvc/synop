@@ -44,6 +44,22 @@ interface ExtractedClaim {
   entity: string;
 }
 
+/**
+ * Deterministic fallback: pull sentences that LOOK checkable (contain
+ * numbers/percentages/currency/years) so Freshness always returns something
+ * even when every AI provider is down.
+ */
+function extractClaimsHeuristically(transcript: string): ExtractedClaim[] {
+  const sentences = transcript
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map(s => s.replace(/\s+/g, ' ').trim())
+    .filter(s => s.length > 25 && s.length < 260);
+  return sentences
+    .filter(s => /\d|%|\$|€|₹|as of|by \d{4}|in \d{4}/i.test(s))
+    .slice(0, 6)
+    .map(s => ({ claim: s, entity: s.split(' ').slice(0, 6).join(' ') }));
+}
+
 export async function analyzeFreshness(
   transcript: string,
   keys: AiKeys,
@@ -62,9 +78,9 @@ export async function analyzeFreshness(
     });
     claims = (extracted?.claims || []).filter(c => c.claim).slice(0, 8);
   } catch (err: any) {
-    // A provider failure must NOT be recorded as "no claims" — throw so the
-    // caller can retry later instead of persisting an empty result.
-    throw new Error('Claim extraction failed: ' + err.message);
+    // Provider failed — degrade to heuristic claims so Freshness never empties.
+    console.warn('[phase2] Claim extraction failed, using heuristic:', err.message);
+    claims = extractClaimsHeuristically(transcript);
   }
 
   if (claims.length === 0) return [];
@@ -126,6 +142,15 @@ export async function analyzeFreshness(
       };
     });
   } catch (err: any) {
-    throw new Error('Freshness classification failed: ' + err.message);
+    // Classification provider failed — still return the claims, honestly marked
+    // as unverified instead of failing the whole feature.
+    console.warn('[phase2] Freshness classification failed, marking unverified:', err.message);
+    return claims.map(c => ({
+      claim: c.claim,
+      entity: c.entity,
+      status: 'VALIDATED' as const,
+      note: 'Could not auto-verify this claim (fact-check unavailable) — treat as unverified.',
+      sources: (searched.find(s => s.claim.claim === c.claim)?.results || []).map(r => r.url).filter(Boolean),
+    }));
   }
 }

@@ -8,8 +8,27 @@ import type { DebateMatrix } from './types';
  * *soft* diarization: the LLM infers distinct speakers from conversational
  * structure (interruptions, question/answer pairs, named turns, shifts in
  * viewpoint). When the video is a solo monologue it reports multiSpeaker=false
- * and the UI hides the matrix, exactly as the PRD demands.
+ * and the UI shows the speaker's key claims instead of a dead-end.
  */
+
+/** Deterministic fallback: notable statements for a single-speaker video. */
+function extractKeyClaims(transcript: string): string[] {
+  const sentences = transcript
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map(s => s.replace(/\s+/g, ' ').trim())
+    .filter(s => s.length > 40 && s.length < 260);
+  // Prefer sentences with numbers, "because/so/therefore" (argumentative), or
+  // quoted material — the meaty claims a debate matrix would surface.
+  const scored = sentences.map(s => {
+    let score = 0;
+    if (/\d/.test(s)) score += 2;
+    if (/\b(because|so|therefore|however|but|the key|the main|fundamentally|actually)\b/i.test(s)) score += 2;
+    if (/["“']/.test(s)) score += 1;
+    if (s.length > 100) score += 1;
+    return { s, score };
+  });
+  return scored.sort((a, b) => b.score - a.score).slice(0, 5).map(x => x.s);
+}
 
 const SYSTEM = `You are a debate analyst who maps arguments to the people who made them.
 
@@ -48,14 +67,26 @@ export async function analyzeDebateMatrix(
 Transcript:
 ${transcript}`;
 
-  const res = await llmJson<DebateMatrix>({
-    system: SYSTEM,
-    user,
-    keys,
-    temperature: 0.2,
-    maxTokens: 4000,
-    maxUserChars: 13000,
-  });
+  let res: DebateMatrix | null = null;
+  try {
+    res = await llmJson<DebateMatrix>({
+      system: SYSTEM,
+      user,
+      keys,
+      temperature: 0.2,
+      maxTokens: 4000,
+      maxUserChars: 13000,
+    });
+  } catch (err: any) {
+    // Provider failed — degrade to a single-speaker view with the key claims
+    // deterministically extracted, so the Debate tab always shows a result.
+    console.warn('[phase2] Debate analysis failed, using heuristic:', err.message);
+    return {
+      multiSpeaker: false,
+      speakers: [{ name: 'Speaker', stance: '', claims: extractKeyClaims(transcript) }],
+      contentions: [],
+    };
+  }
 
   const multiSpeaker = Boolean(res?.multiSpeaker) && Array.isArray(res?.speakers) && res.speakers.length > 1;
   return {

@@ -189,6 +189,66 @@ ${transcript}`;
   }));
 }
 
+const STOP = new Set([
+  'the','a','an','and','or','but','of','to','in','on','for','with','that','this','is','are','was','were','it','as','at','by','from','you','your','i','we','they','he','she','be','have','has','do','does','not','no','so','if','about','into','over','then','their','there','them','what','when','where','which','who','will','would','can','could','should','just','really','very','also','get','got','one','two','like','think','know','much','many','more','most','than','because','been','being','out','up','down','off','here','there','now','then',
+]);
+
+/**
+ * Deterministic, no-LLM topic clustering: sentences grouped by recurring
+ * keyword/bigram overlap. Used as the final fallback so the Topics tab ALWAYS
+ * shows a real result even when every AI provider is down.
+ */
+function clusterHeuristically(transcript: string): TopicCluster[] {
+  const sentences = transcript
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map(s => s.replace(/\s+/g, ' ').trim())
+    .filter(s => s.length > 25);
+  if (sentences.length === 0) {
+    return [{ topic: 'Transcript', summary: transcript.slice(0, 2000), count: 1 }];
+  }
+
+  const wordCount = new Map<string, number>();
+  const bigramCount = new Map<string, number>();
+  sentences.forEach(s => {
+    const words = s.toLowerCase().split(/[^a-z0-9']+/).filter(w => w.length > 3 && !STOP.has(w));
+    words.forEach(w => wordCount.set(w, (wordCount.get(w) || 0) + 1));
+    for (let i = 0; i < words.length - 1; i++) {
+      const b = `${words[i]} ${words[i + 1]}`;
+      bigramCount.set(b, (bigramCount.get(b) || 0) + 1);
+    }
+  });
+
+  // Prefer recurring bigrams (more topical), fall back to words.
+  const phrases = [...bigramCount.entries()].filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1]).map(([p]) => p).slice(0, 6);
+  const topics = phrases.length > 0
+    ? phrases
+    : [...wordCount.entries()].sort((a, b) => b[1] - a[1]).map(([w]) => w).slice(0, 6);
+
+  if (topics.length === 0) {
+    return [{ topic: 'Main Topics', summary: sentences.slice(0, 5).join(' ').slice(0, 2000), count: sentences.length }];
+  }
+
+  const titleCase = (s: string) => s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  const clusters = topics.map(t => ({ topic: titleCase(t), sentences: [] as string[] }));
+  sentences.forEach(s => {
+    const low = s.toLowerCase();
+    let best = -1, bestScore = 0;
+    topics.forEach((t, i) => {
+      const score = t.split(' ').filter(w => low.includes(w)).length;
+      if (score > bestScore) { bestScore = score; best = i; }
+    });
+    if (best >= 0) clusters[best].sentences.push(s);
+  });
+
+  return clusters
+    .filter(c => c.sentences.length > 0)
+    .map(c => ({
+      topic: c.topic,
+      summary: c.sentences.join(' ').slice(0, 1200),
+      count: c.sentences.length,
+    }));
+}
+
 export async function analyzeTopicClusters(
   transcript: string,
   keys: AiKeys,
@@ -250,7 +310,7 @@ export async function analyzeTopicClusters(
     console.warn('[phase2] LLM clustering failed:', err.message);
   }
 
-  // Everything failed — surface it so the UI shows a retry rather than a
-  // misleading "Full Transcript" pseudo-cluster.
-  throw new Error('Topic clustering could not be completed.');
+  // Everything failed — fall back to deterministic keyword clustering so the
+  // Topics tab ALWAYS shows a real result.
+  return clusterHeuristically(transcript);
 }

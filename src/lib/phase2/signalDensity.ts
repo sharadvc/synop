@@ -42,14 +42,29 @@ export async function analyzeSignalDensity(
 Video transcript:
 ${transcript}`;
 
-  const result = await llmJson<SignalDensity>({
-    system: SYSTEM,
-    user,
-    keys,
-    temperature: 0.1,
-    maxTokens: 8192,
-    maxUserChars: 14000,
-  });
+  let result: SignalDensity;
+  try {
+    result = await llmJson<SignalDensity>({
+      system: SYSTEM,
+      user,
+      keys,
+      temperature: 0.1,
+      maxTokens: 8192,
+      maxUserChars: 14000,
+    });
+  } catch (err: any) {
+    // Provider failed — degrade: surface the full transcript as the "value"
+    // with a heuristic flag so the badge always shows something honest.
+    console.warn('[phase2] Signal density failed, using heuristic:', err.message);
+    return {
+      density_score: 100,
+      value_minutes: Math.max(1, Math.round(transcript.length / 1600)),
+      total_minutes: Math.max(1, Math.round(transcript.length / 1600)),
+      high_signal_transcript: transcript.slice(0, 8000),
+      removed_segments: [],
+      heuristic: true,
+    };
+  }
 
   // Coerce + sanity-guard whatever the model returned.
   const score = Math.max(0, Math.min(100, Math.round(Number(result?.density_score) || 0)));
