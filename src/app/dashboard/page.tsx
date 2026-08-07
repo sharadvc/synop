@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu } from "lucide-react";
+import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu, Radio } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { getDashboardData } from "@/actions/dashboard";
 import { createFolder, deleteFolder, assignToFolder } from "@/actions/folders";
 import { useLanguage } from "@/context/LanguageContext";
+import ChannelsPanel from "@/components/ChannelsPanel";
 
 function extractVideoId(url: string) {
   const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const tabs = [
     { name: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
     { name: "Summaries", icon: <Folder className="w-4 h-4" /> },
+    { name: "Channels", icon: <Radio className="w-4 h-4" /> },
     { name: "Chats", icon: <MessageSquare className="w-4 h-4" /> },
     { name: "Documents", icon: <FileText className="w-4 h-4" /> },
     { name: "Settings", icon: <Settings className="w-4 h-4" /> },
@@ -706,6 +708,10 @@ export default function DashboardPage() {
                  )}
               </div>
             </>
+          )}
+
+          {activeTab === "Channels" && (
+            <ChannelsPanel language={language} />
           )}
 
           {activeTab === "Chats" && (

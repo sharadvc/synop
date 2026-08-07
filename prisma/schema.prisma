@@ -53,3 +53,15 @@ model Tag {
   summaries Summary[]
   createdAt DateTime  @default(now())
 }
+
+model ChannelWatch {
+  id            String    @id @default(cuid())
+  channelId     String    @unique
+  title         String
+  handle        String?
+  avatar        String?
+  autoSummarize Boolean   @default(true)
+  lastCheckedAt DateTime?
+  lastVideoId   String?
+  createdAt     DateTime  @default(now())
+}
