@@ -62,3 +62,6 @@ proxy_out.html
 scratch_test/
 # api/
 *.player-script.js
+
+# local sqlite data (regenerate with: npx prisma db push)
+prisma/dev.db

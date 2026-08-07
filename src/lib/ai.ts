@@ -88,36 +88,43 @@ export async function llmJson<T>(opts: LlmOptions): Promise<T> {
 
   let lastErr: Error | null = null;
 
-  // ── TIER 1: Gemini ──────────────────────────────────────────────────────
-  const geminiKey = keys.gemini;
-  if (geminiKey) {
-    try {
-      const res = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' +
-          encodeURIComponent(geminiKey),
-        {
+  // ── TIER 1: OpenRouter (the reliable path — validated working free models) ─
+  const openRouterKey = keys.openrouter;
+  if (openRouterKey) {
+    const models = [...preferredOpenRouterModels, ...OPENROUTER_FALLBACK_MODELS];
+    for (const model of models) {
+      try {
+        const truncated = user.length > maxUserChars
+          ? user.slice(0, maxUserChars) + '\n\n[INPUT TRUNCATED]'
+          : user;
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            Authorization: `Bearer ${openRouterKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://synop.local',
+            'X-Title': 'Synop',
+          },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: `System Prompt:\n${system}\n\nUser Request:\n${user}` }] }],
-            generationConfig: {
-              temperature,
-              maxOutputTokens: maxTokens,
-              responseMimeType: 'application/json',
-            },
+            model,
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: truncated },
+            ],
+            temperature,
+            max_tokens: maxTokens,
+            response_format: { type: 'json_object' },
           }),
-        },
-      );
-      if (res.ok) {
+        });
+        if (res.status === 429) { await delay(1000); continue; }
+        if (!res.ok) continue;
         const json = await res.json();
-        const content = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const content = json.choices?.[0]?.message?.content;
         if (content) return extractJson(content) as T;
-      } else {
-        const err = await res.text();
-        console.warn('[ai] Gemini failed, falling back:', err.substring(0, 150));
+      } catch (err: any) {
+        lastErr = err;
+        await delay(500);
       }
-    } catch (err: any) {
-      console.warn('[ai] Gemini error:', err.message);
     }
   }
 
@@ -163,43 +170,36 @@ export async function llmJson<T>(opts: LlmOptions): Promise<T> {
     }
   }
 
-  // ── TIER 3: OpenRouter ──────────────────────────────────────────────────
-  const openRouterKey = keys.openrouter;
-  if (openRouterKey) {
-    const models = [...preferredOpenRouterModels, ...OPENROUTER_FALLBACK_MODELS];
-    for (const model of models) {
-      try {
-        const truncated = user.length > maxUserChars
-          ? user.slice(0, maxUserChars) + '\n\n[INPUT TRUNCATED]'
-          : user;
-        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  // ── TIER 3: Gemini (used when a key with quota is available) ─────────────
+  const geminiKey = keys.gemini;
+  if (geminiKey) {
+    try {
+      const res = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' +
+          encodeURIComponent(geminiKey),
+        {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${openRouterKey}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://synop.local',
-            'X-Title': 'Synop',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: system },
-              { role: 'user', content: truncated },
-            ],
-            temperature,
-            max_tokens: maxTokens,
-            response_format: { type: 'json_object' },
+            contents: [{ parts: [{ text: `System Prompt:\n${system}\n\nUser Request:\n${user}` }] }],
+            generationConfig: {
+              temperature,
+              maxOutputTokens: maxTokens,
+              responseMimeType: 'application/json',
+            },
           }),
-        });
-        if (res.status === 429) { await delay(1000); continue; }
-        if (!res.ok) continue;
+        },
+      );
+      if (res.ok) {
         const json = await res.json();
-        const content = json.choices?.[0]?.message?.content;
+        const content = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
         if (content) return extractJson(content) as T;
-      } catch (err: any) {
-        lastErr = err;
-        await delay(500);
+      } else {
+        const err = await res.text();
+        console.warn('[ai] Gemini failed, falling back:', err.substring(0, 150));
       }
+    } catch (err: any) {
+      console.warn('[ai] Gemini error:', err.message);
     }
   }
 

@@ -35,6 +35,8 @@ model Summary {
   freshness        String?
   entityGraph      String?
   createdAt        DateTime @default(now())
+
+  @@unique([videoId, language])
 }
 
 model Folder {

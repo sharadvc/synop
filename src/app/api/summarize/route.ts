@@ -76,7 +76,7 @@ THE PIPELINE:
 - [The Extractor] -> "resources": Any books, tools, websites, scientific papers, or historical events mentioned.
 - [The Critique] -> "biasAnalysis": 3-5 points identifying any underlying biases, logical fallacies, or unproven assumptions the speaker relies on. Challenge the speaker.
 - [The Extractor] -> "frameworks": Extract ALL mental models, frameworks, or step-by-step systems discussed (provide "name" and "description").
-- [The Extractor] -> "entities": Notable people, companies, or scientific concepts (provide "type" e.g., "Person"/"Company", and "name").
+- [The Extractor] -> "entities": Extract ALL specific, concrete entities — named people (REAL names, never "the speaker"/"the host"), companies, products, organizations, countries/cities, scientific terms, studies, and laws. Aim for 6-15 entities. Provide "type" (e.g. "Person"/"Company"/"Product"/"Organization"/"Concept"/"Place") and "name" (the exact proper noun, in its original spelling even if the transcript is another language).
 - [The Synthesizer] -> "verdict": A brutal, 1-2 sentence final assessment of the core value provided.
 
 JSON SCHEMA:
@@ -136,43 +136,51 @@ type CustomKeys = {
 async function callModelWithFallback(transcript: string, keys: CustomKeys, language: string = 'English', customPrompt?: string): Promise<any> {
   const SUMMARY_PROMPT = buildSummaryPrompt(language, customPrompt);
   let lastErr: Error | null = null;
-  
-  // TIER 1: Gemini 1.5 Flash (1 Million Context Window)
-  const geminiKey = keys.gemini || process.env.GEMINI_API_KEY;
-  if (geminiKey) {
-    try {
-      console.log("[AI Pipeline] Attempting Gemini 1.5 Pro (2M Context)...");
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `System Prompt: ${SUMMARY_PROMPT}\n\nUser Request: Parse the following transcript into the exact JSON format requested. Transcript:\n\n${transcript}` }] }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 8192
-          }
-        }),
-      });
 
-      if (res.ok) {
-        const json = await res.json();
-        let content = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (match) {
-          content = match[1];
+  // TIER 1: OpenRouter free models (the reliable path — validated working).
+  const openRouterKey = keys.openrouter || process.env.OPENAI_API_KEY;
+  if (openRouterKey) {
+    for (const model of MODELS) {
+      try {
+        console.log(`[AI Pipeline] Attempting ${model}...`);
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${openRouterKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://youtube-summary-ai.vercel.app",
+            "X-Title": "YouTube Summary AI",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: SUMMARY_PROMPT },
+              { role: "user", content: `Transcript:\n\n${transcript.substring(0, 30000)}` },
+            ],
+            temperature: 0.2,
+            response_format: { type: "json_object" },
+          }),
+        });
+
+        if (res.status === 429) {
+          await delay(1000);
+          continue;
         }
-        content = content.trim();
-        if (content) return JSON.parse(content);
-      } else {
-        const err = await res.text();
-        console.warn("[AI Pipeline] Gemini failed, falling back to Groq...", err.substring(0, 150));
+        if (!res.ok) continue;
+
+        const json = await res.json();
+        const content = json.choices?.[0]?.message?.content;
+        if (!content) continue;
+
+        return extractJson(content);
+      } catch (err: any) {
+        lastErr = err;
+        await delay(500);
       }
-    } catch (err: any) {
-      console.warn("[AI Pipeline] Gemini error:", err.message);
     }
   }
 
-  // TIER 2: Groq Llama-3 (Fallback)
+  // TIER 2: Groq Llama-3 (fallback)
   const groqKey = keys.groq || process.env.GROQ_API_KEY;
   if (groqKey) {
     const groqModels = [
@@ -185,8 +193,8 @@ async function callModelWithFallback(transcript: string, keys: CustomKeys, langu
         console.log(`[AI Pipeline] Attempting Groq ${groqModel.id}...`);
 
         const maxChars = groqModel.chars;
-        const truncatedTranscript = transcript.length > maxChars 
-          ? transcript.slice(0, maxChars) + "\n\n[TRANSCRIPT TRUNCATED DUE TO GROQ RATE LIMITS]" 
+        const truncatedTranscript = transcript.length > maxChars
+          ? transcript.slice(0, maxChars) + "\n\n[TRANSCRIPT TRUNCATED DUE TO GROQ RATE LIMITS]"
           : transcript;
 
         const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -201,7 +209,7 @@ async function callModelWithFallback(transcript: string, keys: CustomKeys, langu
               { role: "system", content: SUMMARY_PROMPT },
               { role: "user", content: `Parse the following transcript into the exact JSON format requested. Transcript:\n\n${truncatedTranscript}` },
             ],
-            temperature: 0.2, 
+            temperature: 0.2,
             response_format: { type: "json_object" },
           }),
         });
@@ -224,46 +232,39 @@ async function callModelWithFallback(transcript: string, keys: CustomKeys, langu
     }
   }
 
-  // FALLBACK ENGINE: OpenRouter free models
-  for (const model of MODELS) {
+  // TIER 3: Gemini (only used when a key with quota is available)
+  const geminiKey = keys.gemini || process.env.GEMINI_API_KEY;
+  if (geminiKey) {
     try {
-      console.log(`[AI Pipeline] Attempting ${model}...`);
-      const openRouterKey = keys.openrouter || process.env.OPENAI_API_KEY;
-      if (!openRouterKey) throw new Error("No API keys available for fallback.");
-
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      console.log("[AI Pipeline] Attempting Gemini 2.0 Flash...");
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${openRouterKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://youtube-summary-ai.vercel.app",
-          "X-Title": "YouTube Summary AI",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: SUMMARY_PROMPT },
-            { role: "user", content: `Transcript:\n\n${transcript.substring(0, 30000)}` },
-          ],
-          temperature: 0.2, 
-          response_format: { type: "json_object" },
+          contents: [{ parts: [{ text: `System Prompt: ${SUMMARY_PROMPT}\n\nUser Request: Parse the following transcript into the exact JSON format requested. Transcript:\n\n${transcript}` }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 8192,
+            responseMimeType: "application/json",
+          }
         }),
       });
 
-      if (res.status === 429) {
-        await delay(1000);
-        continue;
+      if (res.ok) {
+        const json = await res.json();
+        let content = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (match) {
+          content = match[1];
+        }
+        content = content.trim();
+        if (content) return JSON.parse(content);
+      } else {
+        const err = await res.text();
+        console.warn("[AI Pipeline] Gemini failed:", err.substring(0, 150));
       }
-      if (!res.ok) continue;
-
-      const json = await res.json();
-      const content = json.choices?.[0]?.message?.content;
-      if (!content) continue;
-
-      return extractJson(content);
     } catch (err: any) {
-      lastErr = err;
-      await delay(500);
+      console.warn("[AI Pipeline] Gemini error:", err.message);
     }
   }
 
@@ -289,6 +290,7 @@ export async function POST(req: Request) {
        return NextResponse.json({
          videoId,
          meta: { title: existingSummary.title, author_name: existingSummary.channel, thumbnail_url: "" },
+         transcript: existingSummary.transcript ? existingSummary.transcript.substring(0, 3000) : null,
          notes: existingSummary.notes || null,
          ...phase2FromSummary(existingSummary),
          summary: {
