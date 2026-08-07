@@ -15,6 +15,8 @@ export interface PersonaDef {
   emoji: string;
   /** Order of summary-page tabs (tab ids) for this persona. */
   tabOrder: string[];
+  /** Tabs hidden entirely for this persona (tailoring, per the audit). */
+  hiddenTabs: string[];
   defaultTab: string;
   dashboardHint: string;
   onboardingBlurb: string;
@@ -26,7 +28,8 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
     label: 'Student',
     tagline: 'Turn lectures into study decks, notes & flashcards',
     emoji: '🎓',
-    tabOrder: ['topics', 'notes', 'frameworks', 'mindmap', 'debate', 'bias', 'quotes'],
+    tabOrder: ['topics', 'notes', 'frameworks', 'mindmap', 'bias', 'quotes'],
+    hiddenTabs: ['debate'],
     defaultTab: 'topics',
     dashboardHint: 'Paste a course playlist → build a whole-course Anki deck & quiz.',
     onboardingBlurb: 'Study Mode, course playlists, flashcards, and exam-ready Anki exports.',
@@ -36,7 +39,8 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
     label: 'Researcher / Analyst',
     tagline: 'Fact-check claims, trace entities & export to your notes',
     emoji: '🔬',
-    tabOrder: ['quotes', 'bias', 'mindmap', 'topics', 'debate', 'frameworks', 'notes'],
+    tabOrder: ['quotes', 'bias', 'mindmap', 'debate', 'topics', 'frameworks'],
+    hiddenTabs: ['notes'],
     defaultTab: 'quotes',
     dashboardHint: 'Paste a video → get its claims fact-checked against current data.',
     onboardingBlurb: 'Freshness fact-checks, entity graphs, Bias & Critique, and Obsidian/Notion export.',
@@ -46,7 +50,8 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
     label: 'Creator / Writer',
     tagline: 'Extract quotable moments, sources & frameworks',
     emoji: '✍️',
-    tabOrder: ['quotes', 'topics', 'bias', 'frameworks', 'mindmap', 'debate', 'notes'],
+    tabOrder: ['quotes', 'topics', 'bias', 'frameworks', 'debate'],
+    hiddenTabs: ['notes', 'mindmap'],
     defaultTab: 'quotes',
     dashboardHint: 'Pull shareable quotes, resources & mental models from any video.',
     onboardingBlurb: 'Sharable quotes, mentioned resources, frameworks, and clean exports.',
@@ -57,6 +62,7 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
     tagline: 'All features, no particular focus',
     emoji: '🧠',
     tabOrder: ['mindmap', 'topics', 'debate', 'frameworks', 'bias', 'quotes', 'notes'],
+    hiddenTabs: [],
     defaultTab: 'mindmap',
     dashboardHint: 'Summarize any video and explore every angle.',
     onboardingBlurb: 'Every feature, in the classic order. You can change this anytime in Settings.',

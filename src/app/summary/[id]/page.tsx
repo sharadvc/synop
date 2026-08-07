@@ -14,7 +14,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import YouTube from 'react-youtube';
 
-import { MessageSquare, Send, X, ExternalLink, Play, Pause, Network } from 'lucide-react';
+import { MessageSquare, Send, X, ExternalLink, Play, Network } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const MermaidGraph = dynamic(() => import('@/components/MermaidGraph'), { ssr: false });
@@ -171,11 +171,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       setNotesLoading(false);
     }
   };
-  // Audio state
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [audioProgress, setAudioProgress] = useState<string>('');
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const audioElementRef = useRef<HTMLAudioElement | null>(null);
 
   // ── Phase 2: progressive enrichment state ───────────────────────────────
   const [signalDensity, setSignalDensity] = useState<SignalDensityData | null>(null);
@@ -501,54 +496,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     }
   };
 
-  const handlePlayAudio = async () => {
-    if (!data?.summary?.executiveSummary) return;
-    
-    if (isPlayingAudio) {
-      if (audioElementRef.current) {
-        audioElementRef.current.pause();
-        audioElementRef.current.currentTime = 0;
-      }
-      setIsPlayingAudio(false);
-      return;
-    }
-    
-    setIsPlayingAudio(true);
-    setAudioProgress('Generating realistic audio...');
-    
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text: data.summary.executiveSummary })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to generate audio');
-      }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      
-      if (!audioElementRef.current) {
-        audioElementRef.current = new Audio();
-        audioElementRef.current.onended = () => setIsPlayingAudio(false);
-      }
-      
-      audioElementRef.current.src = url;
-      audioElementRef.current.play();
-      setAudioProgress('');
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message);
-      setIsPlayingAudio(false);
-      setAudioProgress('');
-    }
-  };
-
   const seekTo = (timeStr: string) => {
     const parts = timeStr.split(':').map(Number);
     let seconds = 0;
@@ -640,9 +587,10 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       .filter(q => q.options.length >= 2);
   }, [summary]);
 
-  const tabs = personaDef(persona).tabOrder
+  const p = personaDef(persona);
+  const tabs = p.tabOrder
     .map(id => ALL_TABS.find(t => t.id === id))
-    .filter((t): t is (typeof ALL_TABS)[number] => !!t);
+    .filter((t): t is (typeof ALL_TABS)[number] => !!t && !p.hiddenTabs.includes(t.id));
 
   const [selectedTopic, setSelectedTopic] = useState(0);
 
@@ -851,20 +799,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                            <Cpu className="w-6 h-6 text-background" strokeWidth={1.5} />
                          </div>
                          <h2 className="text-3xl font-serif text-background">Executive Summary</h2>
-                         <div className="ml-auto flex items-center gap-3">
-                           {audioProgress && (
-                             <span className="text-xs font-mono text-background/70 flex items-center gap-2">
-                               <Loader2 className="w-3.5 h-3.5 animate-spin" /> {audioProgress}
-                             </span>
-                           )}
-                           <button 
-                             onClick={handlePlayAudio}
-                             className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-bold text-sm ${isPlayingAudio ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20' : 'bg-background/10 hover:bg-background/20 text-background'}`}
-                           >
-                             {isPlayingAudio ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-                             {isPlayingAudio ? "Stop Audio" : "Play Podcast"}
-                           </button>
-                         </div>
                        </div>
                        <div className="text-[16px] md:text-[18px] font-medium leading-relaxed text-background/80 space-y-6 whitespace-pre-wrap tracking-wide">
                           {summary.executiveSummary}
@@ -1129,7 +1063,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                     {activeTab === "quotes" && (
                       <div className="space-y-10">
                         {/* Phase 2: Freshness Check */}
-                        {(freshness || enriching || enrichError) && (
+                        {(persona !== 'student' && (freshness || enriching || enrichError)) && (
                           <div>
                             <div className="flex items-center gap-2 mb-4">
                               <ShieldCheck className="w-4 h-4 text-primary" strokeWidth={1.5} />
