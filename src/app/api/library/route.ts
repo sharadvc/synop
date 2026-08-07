@@ -25,39 +25,47 @@ export async function GET(req: Request) {
     take: 200,
   });
 
+  // A video can have multiple persona rows — dedupe to one per video
+  // (keep the most recent) so the library lists unique videos.
+  const seenVideo = new Set<string>();
+  const uniqueSummaries = summaries.filter(s => {
+    if (seenVideo.has(s.videoId)) return false;
+    seenVideo.add(s.videoId);
+    return true;
+  });
+
   const parse = (raw: string | null): any[] => {
     if (!raw) return [];
     try { return JSON.parse(raw); } catch { return []; }
   };
 
-  // Cross-video topic map — the compounding signal.
-  const topicMap = new Map<string, { count: number; videos: string[] }>();
-  for (const s of summaries) {
+  // Cross-video topic map — the compounding signal (unique videos per topic).
+  const topicMap = new Map<string, Set<string>>();
+  for (const s of uniqueSummaries) {
     for (const t of parse(s.topicClusters)) {
       if (!t?.topic) continue;
-      const entry = topicMap.get(t.topic) || { count: 0, videos: [] };
-      entry.count += 1;
-      entry.videos.push(s.videoId);
-      topicMap.set(t.topic, entry);
+      const videos = topicMap.get(t.topic) || new Set<string>();
+      videos.add(s.videoId);
+      topicMap.set(t.topic, videos);
     }
   }
   const topics = [...topicMap.entries()]
-    .map(([topic, v]) => ({ topic, count: v.count, videos: v.videos }))
+    .map(([topic, videos]) => ({ topic, count: videos.size, videos: [...videos] }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 50);
 
   let claims = 0;
-  for (const s of summaries) claims += parse(s.freshness).length;
+  for (const s of uniqueSummaries) claims += parse(s.freshness).length;
 
   const filtered = q
-    ? summaries.filter(s =>
+    ? uniqueSummaries.filter(s =>
         s.title.toLowerCase().includes(q) ||
         s.channel.toLowerCase().includes(q) ||
         s.executiveSummary.toLowerCase().includes(q) ||
         (s.quotes || '').toLowerCase().includes(q) ||
         (s.entities || '').toLowerCase().includes(q) ||
         (s.topicClusters || '').toLowerCase().includes(q))
-    : summaries;
+    : uniqueSummaries;
 
   const results = filtered.slice(0, 50).map(s => ({
     videoId: s.videoId,
@@ -70,7 +78,7 @@ export async function GET(req: Request) {
   }));
 
   return NextResponse.json({
-    stats: { videos: summaries.length, topics: topics.length, claims },
+    stats: { videos: uniqueSummaries.length, topics: topics.length, claims },
     topics,
     results,
     query: q || null,
