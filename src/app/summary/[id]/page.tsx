@@ -159,7 +159,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         headers: {
           ...aiHeaders(),
         },
-        body: JSON.stringify({ videoId: id, language }),
+        body: JSON.stringify({ videoId: id, language, persona: getPersona() }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Failed to generate notes');
@@ -201,7 +201,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         headers: {
           ...aiHeaders(),
         },
-        body: JSON.stringify({ videoId: id, language }),
+        body: JSON.stringify({ videoId: id, language, persona: getPersona() }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Enrichment failed');
@@ -278,6 +278,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
           messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
           videoId: id,
           language,
+          persona: getPersona(),
         }),
       });
 
@@ -473,7 +474,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       const res = await fetch('/api/export/obsidian', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId: id, language }),
+        body: JSON.stringify({ videoId: id, language, persona: getPersona() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Obsidian export failed');
@@ -566,7 +567,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     fetch(`/api/summarize`, {
        method: 'POST',
        headers: aiHeaders(),
-       body: JSON.stringify({ url: `https://youtube.com/watch?v=${id}`, language, customPrompt })
+       body: JSON.stringify({ url: `https://youtube.com/watch?v=${id}`, language, customPrompt, persona: getPersona() })
     })
       .then(r => r.json())
       .then(j => {

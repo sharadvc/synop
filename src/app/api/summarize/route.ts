@@ -54,11 +54,42 @@ const MODELS = [
   "google/gemma-4-31b-it:free",
 ];
 
-function buildSummaryPrompt(language: string = 'English', customPrompt?: string) {
+function personaDirectives(persona: string): string {
+  switch (persona) {
+    case 'researcher':
+      return `PERSONA: RESEARCH ANALYST (deep-dive mode)
+You are producing CITATION-GRADE research material, not casual notes.
+- executiveSummary: Write an EXHAUSTIVE, technically dense dossier. Preserve EVERY specific number, statistic, date, price, percentage, named source, methodology, and study. Explicitly flag any claim that would need verification ("[VERIFY: ...]"). Note internal contradictions and unstated assumptions. Depth and precision OVER readability — a researcher should be able to write from your output alone.
+- quotes: favor exact, attributable, controversial, or data-carrying statements.
+- biasAnalysis: go deeper — 4-6 points, including methodological flaws and what the speaker stands to gain.
+- resources: include any named paper, book, dataset, tool, or primary source with as much specificity as given.`;
+    case 'student':
+      return `PERSONA: STUDY TUTOR (learning mode)
+You are turning this into material someone will revise for an exam.
+- executiveSummary: Write clear, structured, study-ready notes. Define every key term in simple language right where it appears. Mark exam-relevant material with "KEY POINT:", definitions with "DEFINITION:", and things to memorize with "REMEMBER:". Balance depth with clarity — prioritize understanding and recall over exhaustive detail. End the summary with a short "KEY TAKEAWAYS" list of 3-5 items.
+- quotes: favor memorable, quotable explanations that capture a concept simply.
+- frameworks: this matters most — extract every framework/step-by-step method clearly; they become flashcards.
+- biasAnalysis: keep it fair but shorter (2-3 points), framed as "what to be critical about".
+- verdict: state what is worth remembering from this video for study purposes.`;
+    case 'creator':
+      return `PERSONA: CONTENT RESEARCHER (raw-material mode)
+You are prepping material for someone who writes/creates from this.
+- executiveSummary: Write a sharp, structured brief that surfaces the strongest angles, most quotable insights, shareable statistics, and useful frameworks — material someone can repurpose. Skip tangential detail; keep what has pull.
+- quotes: prioritize the most shareable, provocative, or insightful lines.
+- resources: include any tool, book, or reference a creator would link.
+- biasAnalysis: 2-3 points useful for framing/balance.
+- verdict: state the single most compelling takeaway to lead with.`;
+    default:
+      return '';
+  }
+}
+
+function buildSummaryPrompt(language: string = 'English', customPrompt?: string, persona: string = 'general') {
   const baseInstructions = `You are a council of specialized AI Data Miners working to generate an EXHAUSTIVE "Mega-Dossier" from a raw transcript. You are strictly forbidden from writing generic, high-level, or superficial summaries. You must extract every single specific statistic, historical anecdote, debate point, logical framework, and nuance mentioned in the text. Leave absolutely nothing behind.`;
   const customInstructions = customPrompt ? `\n\nUSER'S CUSTOM INSTRUCTION:\n${customPrompt}\nYou MUST follow this custom instruction while maintaining the strict JSON schema below.` : '';
-  
-  return `${baseInstructions}${customInstructions}
+  const personaInstructions = personaDirectives(persona) ? `\n\n${personaDirectives(persona)}` : '';
+
+  return `${baseInstructions}${customInstructions}${personaInstructions}
 
 CRITICAL LANGUAGE RULE:
 - You MUST write ALL output text in ${language}. Every single field value in the JSON MUST be written in ${language}.
@@ -135,8 +166,8 @@ type CustomKeys = {
   customProviders?: CustomProvider[];
 };
 
-async function callModelWithFallback(transcript: string, keys: CustomKeys, language: string = 'English', customPrompt?: string): Promise<any> {
-  const SUMMARY_PROMPT = buildSummaryPrompt(language, customPrompt);
+async function callModelWithFallback(transcript: string, keys: CustomKeys, language: string = 'English', customPrompt?: string, persona: string = 'general'): Promise<any> {
+  const SUMMARY_PROMPT = buildSummaryPrompt(language, customPrompt, persona);
   let lastErr: Error | null = null;
 
   // TIER 0: user-configured custom providers (BYOK endpoints)
@@ -290,15 +321,15 @@ export async function POST(req: Request) {
   try {
     // Auth removed at 04d6622 (master-password auth deleted, cookie never set) — muted for local dev.
 
-    const { url, language = 'English', customPrompt } = await req.json();
+    const { url, language = 'English', customPrompt, persona = 'general' } = await req.json();
     if (!url) return NextResponse.json({ error: 'YouTube URL is required' }, { status: 400 });
 
     const videoId = extractVideoId(url);
     if (!videoId) return NextResponse.json({ error: 'Invalid YouTube URL' }, { status: 400 });
 
-    // Check if summary already exists locally
+    // Check if a summary already exists for this video + language + persona.
     const existingSummary = await db.summary.findFirst({
-       where: { videoId, language }
+       where: { videoId, language, persona }
     });
 
     if (existingSummary) {
@@ -320,10 +351,16 @@ export async function POST(req: Request) {
        });
     }
 
-    const [meta, transcript] = await Promise.all([
-      getVideoMeta(videoId),
-      getTranscript(videoId),
-    ]);
+    // Reuse a stored transcript from any persona's row (transcript is
+    // persona-independent) instead of re-fetching from YouTube each time.
+    const storedTranscript = await db.summary.findFirst({
+      where: { videoId, transcript: { not: null } },
+      select: { transcript: true },
+    });
+
+    const [meta, transcript] = storedTranscript?.transcript
+      ? [await getVideoMeta(videoId), storedTranscript.transcript as string]
+      : await Promise.all([getVideoMeta(videoId), getTranscript(videoId)]);
 
     let summary = null;
     let aiError: string | null = null;
@@ -337,13 +374,14 @@ export async function POST(req: Request) {
           customProviders: resolveCustomProviders(req.headers),
         };
 
-        summary = await callModelWithFallback(transcript, customKeys, language, customPrompt);
+        summary = await callModelWithFallback(transcript, customKeys, language, customPrompt, persona);
         summary = sanitizeSummary(summary);
 
-        // Save to DB
+        // Save to DB (per persona, so each workflow keeps its own tailored version)
         await db.summary.create({
           data: {
             videoId,
+            persona,
             title: meta?.title || "Unknown Title",
             channel: meta?.author_name || "Unknown Channel",
             duration: "TBD",

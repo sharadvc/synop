@@ -34,9 +34,10 @@ model Summary {
   debateMatrix     String?
   freshness        String?
   entityGraph      String?
+  persona          String   @default("general")
   createdAt        DateTime @default(now())
 
-  @@unique([videoId, language])
+  @@unique([videoId, language, persona])
 }
 
 model Folder {

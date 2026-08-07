@@ -118,7 +118,7 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    getDashboardData(language).then(data => {
+    getDashboardData(language, persona).then(data => {
       if (data) {
         setSummaries(data.summaries);
         setFolders(data.folders || []);
@@ -144,7 +144,7 @@ export default function DashboardPage() {
     const savedPersona = localStorage.getItem('synop_persona');
     setPersona(savedPersona && PERSONAS[savedPersona as PersonaId] ? (savedPersona as PersonaId) : 'general');
     setShowOnboarding(!savedPersona);
-  }, [language]);
+  }, [language, persona]);
 
   const updateKey = (provider: 'gemini' | 'groq' | 'openrouter' | 'notion' | 'notionDb' | 'tavily', val: string) => {
     setKeys(prev => ({ ...prev, [provider]: val }));
@@ -1201,6 +1201,7 @@ function DashboardChat({ summaries }: { summaries: any[] }) {
         body: JSON.stringify({
           messages: updated.map(m => ({ role: m.role, content: m.content })),
           videoId: selectedVideoId,
+          persona: getPersona(),
         }),
       });
       const data = await res.json();

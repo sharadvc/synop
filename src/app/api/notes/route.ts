@@ -210,10 +210,11 @@ async function callNotesModel(summaryContext: string, summary: any, keys: Custom
 
 export async function POST(req: Request) {
   try {
-    const { videoId, force, language = "English" } = await req.json();
+    const { videoId, force, language = "English", persona = "general" } = await req.json();
     if (!videoId) return NextResponse.json({ error: 'Video ID is required' }, { status: 400 });
 
-    const summary = await db.summary.findFirst({ where: { videoId, language } });
+    const summary = await db.summary.findFirst({ where: { videoId, language, persona } })
+      ?? await db.summary.findFirst({ where: { videoId, language } });
     if (!summary) return NextResponse.json({ error: 'Summary not found.' }, { status: 404 });
 
     if (summary.notes && !force) {

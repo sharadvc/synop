@@ -20,12 +20,13 @@ export const runtime = 'nodejs';
  */
 export async function POST(req: Request) {
   try {
-    const { videoId, language = 'English', force = false } = await req.json();
+    const { videoId, language = 'English', force = false, persona = 'general' } = await req.json();
     if (!videoId) {
       return NextResponse.json({ error: 'Video ID is required' }, { status: 400 });
     }
 
-    const summary = await db.summary.findFirst({ where: { videoId, language } });
+    const summary = await db.summary.findFirst({ where: { videoId, language, persona } })
+      ?? await db.summary.findFirst({ where: { videoId, language } });
     if (!summary) {
       return NextResponse.json({ error: 'Summary not found. Summarize the video first.' }, { status: 404 });
     }

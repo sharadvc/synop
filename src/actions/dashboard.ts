@@ -2,10 +2,16 @@
 
 import { db } from "@/lib/db";
 
-export async function getDashboardData(language?: string) {
+export async function getDashboardData(language?: string, persona: string = 'general') {
   const [summaries, folders] = await Promise.all([
     db.summary.findMany({
-      where: language ? { language } : undefined,
+      where: {
+        AND: [
+          // Show this persona's tailored summaries + legacy 'general' ones.
+          { persona: { in: [persona, 'general'] } },
+          ...(language ? [{ language }] : []),
+        ],
+      },
       orderBy: { createdAt: 'desc' },
       take: 50
     }),

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Sparkles, CheckCircle2, AlertCircle, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import { aiHeaders } from "@/lib/client-ai";
+import { getPersona } from "@/lib/persona";
 
 interface BatchSummarizeProps {
   /** The unprocessed videos in the playlist. */
@@ -49,7 +50,7 @@ export default function BatchSummarize({ items, language }: BatchSummarizeProps)
         const res = await fetch("/api/summarize", {
           method: "POST",
           headers: aiHeaders(),
-          body: JSON.stringify({ url: `https://youtube.com/watch?v=${it.id}`, language }),
+          body: JSON.stringify({ url: `https://youtube.com/watch?v=${it.id}`, language, persona: getPersona() }),
         });
         const j = await res.json();
         ok = !j.error && !!j.summary;

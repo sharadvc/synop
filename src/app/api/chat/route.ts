@@ -10,7 +10,7 @@ export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
-    const { messages, videoId, language = "English" } = await req.json();
+    const { messages, videoId, language = "English", persona = "general" } = await req.json();
     if (!videoId) return NextResponse.json({ error: 'Video ID is required' }, { status: 400 });
     if (!messages || messages.length === 0) return NextResponse.json({ error: 'No messages provided' }, { status: 400 });
 
@@ -48,7 +48,8 @@ Frameworks: ${s.frameworks ?? ''}
 `;
     } else {
       // Specific Video Mode
-      const summary = await db.summary.findFirst({ where: { videoId, language } });
+      const summary = await db.summary.findFirst({ where: { videoId, language, persona } })
+        ?? await db.summary.findFirst({ where: { videoId, language } });
       if (!summary) return NextResponse.json({ error: 'Summary not found. Please summarize the video first.' }, { status: 404 });
 
       systemPrompt = `You are a highly intelligent AI assistant answering questions about a YouTube video.

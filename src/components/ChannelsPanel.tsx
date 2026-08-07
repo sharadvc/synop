@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Search, Plus, X, Loader2, RefreshCw, Radio, Bell, Sparkles, CheckCircle2, Play } from "lucide-react";
 import { aiHeaders } from "@/lib/client-ai";
+import { getPersona } from "@/lib/persona";
 
 interface ChannelInfo {
   channelId: string;
@@ -107,7 +108,7 @@ export default function ChannelsPanel({ language = "English" }: { language?: str
         await fetch("/api/summarize", {
           method: "POST",
           headers: aiHeaders(),
-          body: JSON.stringify({ url: `https://youtube.com/watch?v=${videos[i].id}`, language }),
+          body: JSON.stringify({ url: `https://youtube.com/watch?v=${videos[i].id}`, language, persona: getPersona() }),
         });
       } catch {}
       await new Promise(r => setTimeout(r, 400));
