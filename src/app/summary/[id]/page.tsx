@@ -8,6 +8,7 @@ import { useSearchParams } from "next/navigation";
 import { use, useEffect, useState, useRef, useMemo } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { aiHeaders } from "@/lib/client-ai";
+import { getPersona, personaDef, type PersonaId } from "@/lib/persona";
 import { motion } from "framer-motion";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -98,6 +99,16 @@ function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: ()
   );
 }
 
+const ALL_TABS = [
+  { id: "mindmap", label: "Knowledge Graph", icon: <Network className="w-4 h-4" strokeWidth={1.5} /> },
+  { id: "topics", label: "Topics", icon: <Tags className="w-4 h-4" strokeWidth={1.5} /> },
+  { id: "debate", label: "Debate", icon: <Gavel className="w-4 h-4" strokeWidth={1.5} /> },
+  { id: "frameworks", label: "Frameworks", icon: <Boxes className="w-4 h-4" strokeWidth={1.5} /> },
+  { id: "bias", label: "Bias & Critique", icon: <Scale className="w-4 h-4" strokeWidth={1.5} /> },
+  { id: "quotes", label: "Quotes", icon: <Quote className="w-4 h-4" strokeWidth={1.5} /> },
+  { id: "notes", label: "Study Mode", icon: <GraduationCap className="w-4 h-4" strokeWidth={1.5} /> }
+];
+
 export default function SummaryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const searchParams = useSearchParams();
@@ -110,6 +121,15 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("mindmap");
+  // Persona (from onboarding): reshapes which tabs lead.
+  const [persona, setPersona] = useState<PersonaId>('general');
+
+  useEffect(() => {
+    const p = getPersona();
+    setPersona(p);
+    setActiveTab(personaDef(p).defaultTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [exportingNotion, setExportingNotion] = useState(false);
@@ -619,15 +639,9 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       .filter(q => q.options.length >= 2);
   }, [summary]);
 
-  const tabs = [
-    { id: "mindmap", label: "Knowledge Graph", icon: <Network className="w-4 h-4" strokeWidth={1.5} /> },
-    { id: "topics", label: "Topics", icon: <Tags className="w-4 h-4" strokeWidth={1.5} /> },
-    { id: "debate", label: "Debate", icon: <Gavel className="w-4 h-4" strokeWidth={1.5} /> },
-    { id: "frameworks", label: "Frameworks", icon: <Boxes className="w-4 h-4" strokeWidth={1.5} /> },
-    { id: "bias", label: "Bias & Critique", icon: <Scale className="w-4 h-4" strokeWidth={1.5} /> },
-    { id: "quotes", label: "Quotes", icon: <Quote className="w-4 h-4" strokeWidth={1.5} /> },
-    { id: "notes", label: "Study Mode", icon: <GraduationCap className="w-4 h-4" strokeWidth={1.5} /> }
-  ];
+  const tabs = personaDef(persona).tabOrder
+    .map(id => ALL_TABS.find(t => t.id === id))
+    .filter((t): t is (typeof ALL_TABS)[number] => !!t);
 
   const [selectedTopic, setSelectedTopic] = useState(0);
 

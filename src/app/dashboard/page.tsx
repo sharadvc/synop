@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu, Radio, Cpu, RefreshCw } from "lucide-react";
+import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu, Radio, Cpu, RefreshCw, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { getDashboardData } from "@/actions/dashboard";
@@ -8,6 +8,7 @@ import { createFolder, deleteFolder, assignToFolder } from "@/actions/folders";
 import { useLanguage } from "@/context/LanguageContext";
 import ChannelsPanel from "@/components/ChannelsPanel";
 import { aiHeaders } from "@/lib/client-ai";
+import { PERSONAS, PERSONA_LIST, getPersona, savePersona, personaDef, type PersonaId } from "@/lib/persona";
 
 function extractVideoId(url: string) {
   const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
@@ -33,6 +34,9 @@ export default function DashboardPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // Persona (first-run onboarding)
+  const [persona, setPersona] = useState<PersonaId>('general');
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
   
@@ -136,6 +140,10 @@ export default function DashboardPage() {
     });
     setKeysLoaded(true);
     try { setCustomProviders(JSON.parse(localStorage.getItem('custom_llm_providers') || '[]')); } catch { setCustomProviders([]); }
+    // Persona: show onboarding only when never chosen before.
+    const savedPersona = localStorage.getItem('synop_persona');
+    setPersona(savedPersona && PERSONAS[savedPersona as PersonaId] ? (savedPersona as PersonaId) : 'general');
+    setShowOnboarding(!savedPersona);
   }, [language]);
 
   const updateKey = (provider: 'gemini' | 'groq' | 'openrouter' | 'notion' | 'notionDb' | 'tavily', val: string) => {
@@ -556,6 +564,17 @@ export default function DashboardPage() {
               Good {new Date().getHours() < 12 ? 'Morning' : 'Evening'}{userName ? `, ${userName}` : ''}
           </h2>
 
+          {persona !== 'general' && (
+            <div className="mb-8 glass border border-primary/20 bg-primary/5 rounded-2xl px-5 py-4 flex items-center gap-3 animate-rise stagger-2">
+              <span className="text-2xl shrink-0">{personaDef(persona).emoji}</span>
+              <div>
+                <p className="text-sm font-bold text-foreground">{personaDef(persona).label} mode</p>
+                <p className="text-xs text-foreground/60 mt-0.5">{personaDef(persona).dashboardHint}</p>
+              </div>
+              <button onClick={() => setActiveTab('Settings')} className="ml-auto shrink-0 text-[11px] font-bold text-primary hover:underline">Change</button>
+            </div>
+          )}
+
           {activeTab === "Dashboard" && (
             <>
               <div className="flex flex-wrap items-center gap-4 mb-12 animate-rise stagger-3">
@@ -934,6 +953,28 @@ export default function DashboardPage() {
                    </div>
                 </div>
 
+                {/* Your Role (persona) */}
+                <div className="glass border border-border/50 rounded-3xl p-8 shadow-xl shadow-foreground/5">
+                   <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
+                     <Users className="w-5 h-5 text-primary" /> Your Role
+                   </h3>
+                   <p className="text-sm text-foreground/50 mb-5">Which workflow do you want Synop tuned for?</p>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                     {PERSONA_LIST.map(p => (
+                       <button
+                         key={p.id}
+                         onClick={() => { savePersona(p.id); setPersona(p.id); }}
+                         className={`text-left p-4 rounded-2xl border transition-all ${persona === p.id ? 'bg-primary/10 border-primary/40' : 'bg-foreground/5 border-border/40 hover:border-border/70'}`}
+                       >
+                         <div className="flex items-center gap-2 font-bold text-sm">
+                           <span className="text-xl">{p.emoji}</span> {p.label}
+                         </div>
+                         <p className="text-[11px] text-foreground/50 mt-1 leading-relaxed">{p.tagline}</p>
+                       </button>
+                     ))}
+                   </div>
+                </div>
+
                 {/* Custom AI Providers */}
                 <div className="glass border border-border/50 rounded-3xl p-8 shadow-xl shadow-foreground/5">
                    <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
@@ -1033,6 +1074,36 @@ export default function DashboardPage() {
                </div>
              </div>
            )}
+
+           {/* First-run Persona Onboarding */}
+          {showOnboarding && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="glass border border-border/50 rounded-3xl p-8 shadow-2xl w-full max-w-2xl animate-rise max-h-[90vh] overflow-y-auto">
+                <div className="text-center mb-8">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                    <Sparkles className="w-7 h-7 text-primary" />
+                  </div>
+                  <h3 className="text-3xl font-serif font-extrabold text-foreground">Who are you?</h3>
+                  <p className="text-sm text-foreground/50 mt-2 max-w-md mx-auto">Synop reshapes itself around your workflow. Pick the closest fit — you can change it anytime in Settings.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {PERSONA_LIST.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => { savePersona(p.id); setPersona(p.id); setShowOnboarding(false); showToast(`${p.label} mode activated`); }}
+                      className="group text-left glass border border-border/50 rounded-2xl p-5 hover:border-primary/50 hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-3xl">{p.emoji}</span>
+                        <span className="font-bold text-foreground">{p.label}</span>
+                      </div>
+                      <p className="text-xs text-foreground/50 leading-relaxed">{p.onboardingBlurb}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
            {/* Folder Creation Dialog */}
           {showFolderDialog && (
