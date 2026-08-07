@@ -16,6 +16,8 @@ import { MessageSquare, Send, X, ExternalLink, Play, Pause, Network } from 'luci
 import dynamic from 'next/dynamic';
 
 const MermaidGraph = dynamic(() => import('@/components/MermaidGraph'), { ssr: false });
+const FrameworkDiagram = dynamic(() => import('@/components/FrameworkDiagram'), { ssr: false });
+const HandwrittenNotes = dynamic(() => import('@/components/HandwrittenNotes'), { ssr: false });
 import { entityGraphToMermaid } from '@/lib/phase2/entityGraph';
 
 interface SummaryData {
@@ -45,8 +47,8 @@ interface ApiResponse {
 }
 
 interface EntityGraphData {
-  nodes: { id: string; name: string; type: string; degree: number; mentions: number }[];
-  edges: { source: string; target: string; weight: number }[];
+  nodes: { id: string; name: string; type: string; degree: number; mentions: number; kind: 'entity' | 'topic' }[];
+  edges: { source: string; target: string; weight: number; kind: 'cooccur' | 'membership' }[];
 }
 
 // ── Phase 2 (next-gen) payload shapes ─────────────────────────────────────
@@ -114,13 +116,43 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [toast, setToast] = useState<string | null>(null);
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
   // Study Mode (flashcards + quiz)
-  const [studyMode, setStudyMode] = useState<'cards' | 'quiz'>('cards');
+  const [studyMode, setStudyMode] = useState<'cards' | 'quiz' | 'notes'>('cards');
   const [cardIdx, setCardIdx] = useState(0);
   const [cardFlipped, setCardFlipped] = useState(false);
   const [quizIdx, setQuizIdx] = useState(0);
   const [quizChoice, setQuizChoice] = useState<string | null>(null);
   const [quizScore, setQuizScore] = useState(0);
   const [quizDone, setQuizDone] = useState(false);
+  // Handwritten notes (Phase 3)
+  const [handwrittenNotes, setHandwrittenNotes] = useState<string | null>(null);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+
+  const loadHandwrittenNotes = async () => {
+    if (handwrittenNotes || notesLoading) return;
+    setNotesLoading(true);
+    setNotesError(null);
+    try {
+      const res = await fetch('/api/notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-gemini-key': localStorage.getItem('gemini_key') || '',
+          'x-groq-key': localStorage.getItem('groq_key') || '',
+          'x-openrouter-key': localStorage.getItem('openrouter_key') || '',
+        },
+        body: JSON.stringify({ videoId: id, language }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Failed to generate notes');
+      setHandwrittenNotes(j.notes);
+    } catch (err: any) {
+      console.error('[notes]', err);
+      setNotesError(err.message || 'Failed to generate notes');
+    } finally {
+      setNotesLoading(false);
+    }
+  };
   // Audio state
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioProgress, setAudioProgress] = useState<string>('');
@@ -606,7 +638,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   }, [summary]);
 
   const tabs = [
-    { id: "mindmap", label: "Entity Graph", icon: <Network className="w-4 h-4" strokeWidth={1.5} /> },
+    { id: "mindmap", label: "Knowledge Graph", icon: <Network className="w-4 h-4" strokeWidth={1.5} /> },
     { id: "topics", label: "Topics", icon: <Tags className="w-4 h-4" strokeWidth={1.5} /> },
     { id: "debate", label: "Debate", icon: <Gavel className="w-4 h-4" strokeWidth={1.5} /> },
     { id: "frameworks", label: "Frameworks", icon: <Boxes className="w-4 h-4" strokeWidth={1.5} /> },
@@ -859,8 +891,8 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                       <div className="w-full flex flex-col gap-4">
                         <div className="flex items-center justify-between gap-3 flex-wrap">
                           <div>
-                            <div className="bg-foreground text-background px-4 py-2 rounded-xl text-xs font-bold uppercase w-fit tracking-wide shadow-md">Entity Graph</div>
-                            <p className="text-sm text-foreground/50 mt-3 max-w-xl">Entities that were actually mentioned together in the video — edge weight = co-occurrence frequency. No hallucinated links.</p>
+                            <div className="bg-foreground text-background px-4 py-2 rounded-xl text-xs font-bold uppercase w-fit tracking-wide shadow-md">Knowledge Graph</div>
+                            <p className="text-sm text-foreground/50 mt-3 max-w-xl">Semantic topics (purple) linked to the entities mentioned in each — plus entity↔entity co-occurrence edges. Every link is grounded in the actual content, not hallucinated.</p>
                           </div>
                           {enrichError && !entityGraph && (
                             <button onClick={() => { enrichStartedRef.current = ''; runEnrich(); }} className="h-9 px-4 rounded-xl text-xs font-bold text-primary border border-primary/30 hover:bg-primary/10 transition-colors flex items-center gap-2">
@@ -879,20 +911,33 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                         {entityGraph && entityGraph.nodes.length === 0 && (
                           <div className="p-12 text-center glass border border-border/50 rounded-3xl">
                             <Network className="w-12 h-12 text-foreground/20 mx-auto mb-4" />
-                            <p className="font-bold text-foreground">No connected entities found</p>
-                            <p className="text-sm text-foreground/50 mt-1 max-w-md mx-auto">This video didn't surface enough distinct entities that co-occur to draw a meaningful graph.</p>
+                            <p className="font-bold text-foreground">No connected concepts found</p>
+                            <p className="text-sm text-foreground/50 mt-1 max-w-md mx-auto">This video didn't surface enough distinct topics or entities that connect to draw a meaningful graph.</p>
                           </div>
                         )}
 
                         {entityMermaid && (
                           <div className="flex flex-col gap-4">
                             <MermaidGraph chart={entityMermaid} />
-                            <div className="flex flex-wrap gap-2 justify-center">
-                              {entityGraph!.nodes.slice(0, 12).map((n, i) => (
-                                <span key={i} className="px-2.5 py-1 rounded-full bg-foreground/5 border border-border/50 text-[11px] font-bold text-foreground/60">
-                                  {n.name} <span className="text-foreground/30 font-medium">×{n.mentions}</span>
-                                </span>
-                              ))}
+                            <div className="flex flex-col items-center gap-2">
+                              {entityGraph!.nodes.some(n => n.kind === 'topic') && (
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                  {entityGraph!.nodes.filter(n => n.kind === 'topic').map((n, i) => (
+                                    <span key={i} className="px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-[11px] font-bold text-purple-600">
+                                      {n.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {entityGraph!.nodes.some(n => n.kind === 'entity') && (
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                  {entityGraph!.nodes.filter(n => n.kind === 'entity').slice(0, 12).map((n, i) => (
+                                    <span key={i} className="px-2.5 py-1 rounded-full bg-foreground/5 border border-border/50 text-[11px] font-bold text-foreground/60">
+                                      {n.name} <span className="text-foreground/30 font-medium">×{n.mentions}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1060,7 +1105,8 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {summary.frameworks.map((fw, i) => (
                           <div key={i} className="glass border border-border/50 p-8 rounded-[2rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all">
-                            <h3 className="text-xl font-bold font-serif text-foreground mb-4">{fw.name}</h3>
+                            <FrameworkDiagram name={fw.name} description={fw.description} />
+                            <h3 className="text-xl font-bold font-serif text-foreground mb-2 mt-2">{fw.name}</h3>
                             <p className="text-[15px] font-medium leading-relaxed text-foreground/80">{fw.description}</p>
                           </div>
                         ))}
@@ -1195,6 +1241,10 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                               className={`h-9 px-4 rounded-xl text-xs font-bold transition-colors ${studyMode === 'quiz' ? 'bg-primary text-white' : 'bg-foreground/5 hover:bg-foreground/10'}`}
                             >Quiz</button>
                             <button
+                              onClick={() => { setStudyMode('notes'); loadHandwrittenNotes(); }}
+                              className={`h-9 px-4 rounded-xl text-xs font-bold transition-colors ${studyMode === 'notes' ? 'bg-primary text-white' : 'bg-foreground/5 hover:bg-foreground/10'}`}
+                            >Notes</button>
+                            <button
                               onClick={async () => {
                                 const lines = studyDeck.map(d => `${d.front}\t${d.back}`);
                                 await navigator.clipboard.writeText(lines.join('\n'));
@@ -1272,6 +1322,10 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                               </div>
                             )}
                           </div>
+                        )}
+
+                        {studyMode === 'notes' && (
+                          <HandwrittenNotes text={handwrittenNotes} loading={notesLoading} error={notesError} onLoad={loadHandwrittenNotes} />
                         )}
                       </div>
                     )}

@@ -151,13 +151,13 @@ export default function Home() {
         {/* Headline */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-center max-w-3xl mb-8">
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.1] text-[#0f172a] dark:text-white">
-            Easily Summarise Your <br/>Video. <span className="relative inline-block">Start Free.<Underline /></span>
+            Free & open source <br/> YouTube summaries in <span className="relative inline-block">30 seconds.<Underline /></span>
           </h1>
         </motion.div>
 
         {/* Subheadline */}
         <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-[17px] text-foreground/70 text-center max-w-xl mb-12 font-medium leading-relaxed">
-          The 100% free, open-source tool to extract signal from noise and reclaim your time.
+          Paste a link. Get structured notes — insights, actions, quotes. No subscription. No telemetry. Your data stays yours.
         </motion.p>
 
         {/* Buttons */}

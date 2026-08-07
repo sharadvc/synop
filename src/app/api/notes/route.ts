@@ -14,6 +14,7 @@ CRITICAL RULES - violating these is failure:
 4. Use plain dashes (-) for bullet points only. No other markdown.
 5. Write in student voice: "The instructor explains...", "Key concept:", "IMPORTANT:", "Note to self:", "Example given:"
 6. Every bullet must reference something SPECIFIC from the video — exact names, numbers, timestamps, quotes, frameworks, or examples. No generic filler.
+7. TOPIC ORDERING: If the provided Video Content includes a "TOPICS" list, organize your note pages around those themes IN THE EXACT ORDER GIVEN. Name each page after the theme it covers and group its related material there. This replaces chronological page order.
 
 EXACT OUTPUT FORMAT — use this precisely:
 
@@ -218,6 +219,8 @@ export async function POST(req: Request) {
        quotes: summary.quotes, verdict: summary.verdict,
        frameworks: summary.frameworks, biasAnalysis: summary.biasAnalysis,
        entities: summary.entities,
+       // Phase 2: order the handwritten pages by these themes.
+       TOPICS: (() => { try { return (JSON.parse(summary.topicClusters || '[]')).map((t: any) => t.topic); } catch { return []; } })(),
     });
 
     const customKeys = {

@@ -71,6 +71,7 @@ export async function POST(req: Request) {
       transcript,
       parse(summary.entities) || [],
       summaryText ? [summaryText] : [],
+      parse(summary.topicClusters) || [],
     );
 
     // Fully cached → return immediately, no AI spend.
