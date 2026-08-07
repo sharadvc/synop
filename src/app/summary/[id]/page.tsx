@@ -82,6 +82,7 @@ function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: ()
 
 const ALL_TABS = [
   { id: "topics", label: "Topics", icon: <Tags className="w-4 h-4" strokeWidth={1.5} /> },
+  { id: "notebook", label: "Notebook", icon: <PenTool className="w-4 h-4" strokeWidth={1.5} /> },
   { id: "research", label: "Research Report", icon: <FileText className="w-4 h-4" strokeWidth={1.5} /> },
   { id: "debate", label: "Debate", icon: <Gavel className="w-4 h-4" strokeWidth={1.5} /> },
   { id: "frameworks", label: "Frameworks", icon: <Boxes className="w-4 h-4" strokeWidth={1.5} /> },
@@ -116,8 +117,8 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
   const [notionResult, setNotionResult] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
-  // Study Mode (flashcards + quiz + spaced repetition review + notes)
-  const [studyMode, setStudyMode] = useState<'cards' | 'quiz' | 'review' | 'notes'>('cards');
+  // Study Mode (flashcards + quiz + spaced repetition review)
+  const [studyMode, setStudyMode] = useState<'cards' | 'quiz' | 'review'>('cards');
   const [cardIdx, setCardIdx] = useState(0);
   const [cardFlipped, setCardFlipped] = useState(false);
   const [quizIdx, setQuizIdx] = useState(0);
@@ -149,9 +150,81 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       setNotesLoading(false);
     }
   };
+
+  const downloadNotesMd = () => {
+    if (!handwrittenNotes) return;
+    const blob = new Blob([handwrittenNotes], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `notes-${(title || 'notes').replace(/[^a-z0-9]/gi, '_').toLowerCase().slice(0, 60)}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadNotesPdf = async () => {
+    if (!handwrittenNotes) return;
+    try {
+      const { default: html2pdf } = await import('html2pdf.js');
+      const esc = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const pages = handwrittenNotes.split(/(?=^=== PAGE )/m).filter(Boolean);
+      let bodyHtml = '<div style="font-family:Georgia,serif;padding:8px">';
+      pages.forEach((p, i) => {
+        const lines = p.split('\n');
+        const title = (lines[0] || '').replace(/^=== /, '').replace(/ ===$/, '').replace(/^PAGE \d+:\s*/i, '');
+        const body = lines.slice(1).join('\n');
+        bodyHtml += `<div style="background:#fdfaf3;border-radius:6px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.15);
+          background-image:repeating-linear-gradient(transparent,transparent 30px,rgba(120,110,90,0.18) 30px,rgba(120,110,90,0.18) 31px);line-height:31px;color:#3a3429;">
+          <h4 style="margin:0 0 10px;color:#b24a5b;font-size:18px;">${esc(title)}</h4>
+          <p style="margin:0;white-space:pre-wrap;font-size:13px;line-height:31px;">${esc(body)}</p>
+        </div>`;
+      });
+      bodyHtml += '</div>';
+
+      const container = document.createElement('div');
+      container.style.cssText = 'position:fixed;left:-9999px;top:0;width:8.5in;background:#fff;z-index:10000';
+      container.innerHTML = bodyHtml;
+      document.body.appendChild(container);
+      await html2pdf().set({
+        margin: 0.5,
+        filename: `notes-${(title || 'notes').replace(/[^a-z0-9]/gi, '_').toLowerCase().slice(0, 60)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+      }).from(container).save();
+      document.body.removeChild(container);
+    } catch (err: any) {
+      console.error('[notes pdf]', err);
+      downloadNotesMd();
+    }
+  };
+  const shareDeck = async () => {
+    if (studyDeck.length === 0) return;
+    try {
+      const res = await fetch('/api/share/deck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title || 'Study deck',
+          sourceUrl: `https://youtube.com/watch?v=${id}`,
+          deck: studyDeck.map(c => ({ front: c.front, back: c.back })),
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Failed to share');
+      const url = `${window.location.origin}${j.url}`;
+      await navigator.clipboard.writeText(url);
+      showToast('Share link copied!');
+    } catch (err: any) {
+      console.error('[share]', err);
+      showToast('Could not share deck');
+    }
+  };
+
   // Spaced repetition review (SM-2-lite, persisted per video in localStorage)
-  const REVIEW_KEY = `synop_review_${id}`;
-  const [reviewQueue, setReviewQueue] = useState<number[]>([]);
+  const REVIEW_KEY = `synop_review_${id}`;  const [reviewQueue, setReviewQueue] = useState<number[]>([]);
   const [reviewIdx, setReviewIdx] = useState(0);
   const [reviewFlipped, setReviewFlipped] = useState(false);
   const [reviewDone, setReviewDone] = useState(false);
@@ -786,6 +859,28 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                       </div>
                     )}
 
+                    {activeTab === "notebook" && (
+                      <div className="w-full space-y-6">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div>
+                            <h3 className="text-lg font-bold text-foreground flex items-center gap-2"><PenTool className="w-5 h-5 text-primary" /> Notebook</h3>
+                            <p className="text-sm text-foreground/50 mt-1">Handwritten-style notes covering every point of the video, ordered by topic.</p>
+                          </div>
+                          {handwrittenNotes && (
+                            <div className="flex items-center gap-2">
+                              <button onClick={downloadNotesPdf} className="h-9 px-4 bg-foreground text-background rounded-xl text-xs font-bold hover:opacity-90 inline-flex items-center gap-1.5">
+                                <Download className="w-3.5 h-3.5" /> Download PDF
+                              </button>
+                              <button onClick={downloadNotesMd} className="h-9 px-4 rounded-xl text-xs font-bold text-primary border border-primary/30 hover:bg-primary/10 inline-flex items-center gap-1.5">
+                                <FileText className="w-3.5 h-3.5" /> Download .md
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <HandwrittenNotes text={handwrittenNotes} loading={notesLoading} error={notesError} onLoad={loadHandwrittenNotes} />
+                      </div>
+                    )}
+
                     {activeTab === "research" && (
                       <div className="w-full space-y-6">
                         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1096,10 +1191,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                               <RefreshCw className="w-3.5 h-3.5" /> Review{dueCount > 0 ? ` (${dueCount})` : ''}
                             </button>
                             <button
-                              onClick={() => { setStudyMode('notes'); loadHandwrittenNotes(); }}
-                              className={`h-9 px-4 rounded-xl text-xs font-bold transition-colors ${studyMode === 'notes' ? 'bg-primary text-white' : 'bg-foreground/5 hover:bg-foreground/10'}`}
-                            >Notes</button>
-                            <button
                               onClick={async () => {
                                 const lines = studyDeck.map(d => `${d.front}\t${d.back}`);
                                 await navigator.clipboard.writeText(lines.join('\n'));
@@ -1107,6 +1198,11 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                               }}
                               className="h-9 px-4 bg-foreground text-background rounded-xl text-xs font-bold hover:opacity-90 transition-opacity"
                             >Copy Anki</button>
+                            <button
+                              onClick={shareDeck}
+                              className="h-9 px-4 rounded-xl text-xs font-bold bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+                              title="Create a shareable link to this deck"
+                            >Share</button>
                           </div>
                         </div>
 
@@ -1224,9 +1320,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                       </div>
                     )}
 
-                        {studyMode === 'notes' && (
-                          <HandwrittenNotes text={handwrittenNotes} loading={notesLoading} error={notesError} onLoad={loadHandwrittenNotes} />
-                        )}
                   </div>
                 </>
               )}

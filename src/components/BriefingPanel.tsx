@@ -19,9 +19,28 @@ interface NewVideo {
 export default function BriefingPanel({ summaries }: { summaries: any[] }) {
   const [checking, setChecking] = useState(false);
   const [newVideos, setNewVideos] = useState<NewVideo[]>([]);
+  const [streak, setStreak] = useState(0);
   // Hydration-safe date (render after mount to avoid SSR/client mismatch).
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // Daily visit streak.
+  useEffect(() => {
+    const today = new Date().toDateString();
+    let stored: any = null;
+    try { stored = JSON.parse(localStorage.getItem('synop_streak') || 'null'); } catch {}
+    let count = 1;
+    if (stored && stored.last) {
+      const lastDay = new Date(stored.last);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (stored.last === today) count = stored.count;
+      else if (lastDay.toDateString() === yesterday.toDateString()) count = stored.count + 1;
+      else count = 1;
+    }
+    localStorage.setItem('synop_streak', JSON.stringify({ last: today, count }));
+    setStreak(count);
+  }, []);
 
   // Check watched channels for new uploads.
   useEffect(() => {
@@ -53,7 +72,18 @@ export default function BriefingPanel({ summaries }: { summaries: any[] }) {
           <h3 className="text-xl font-bold text-foreground">Your Briefing</h3>
           <p className="text-sm text-foreground/50">{mounted ? date : ''}</p>
         </div>
+        <div className="ml-auto flex items-center gap-2">
+          {mounted && streak > 0 && (
+            <span className={`px-3 py-1.5 rounded-full text-xs font-bold inline-flex items-center gap-1 ${streak >= 2 ? 'bg-orange-500/10 text-orange-600 border border-orange-500/30' : 'bg-foreground/5 text-foreground/50 border border-border/40'}`}>
+              🔥 {streak}-day streak
+            </span>
+          )}
+        </div>
       </div>
+
+      {mounted && streak >= 2 && (
+        <p className="text-xs font-medium text-orange-600/80">🔥 {streak} days in a row — come back tomorrow to keep it going.</p>
+      )}
 
       {/* New uploads */}
       <div className="glass border border-border/50 rounded-3xl overflow-hidden shadow-xl shadow-foreground/5">

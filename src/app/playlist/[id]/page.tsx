@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { fetchPlaylist } from "@/lib/playlist";
 import BatchSummarize from "@/components/BatchSummarize";
 import CourseStudy, { type CourseCard } from "@/components/CourseStudy";
+import CourseTracker from "@/components/CourseTracker";
 
 function parseList(raw: string | null): any[] {
   if (!raw) return [];
@@ -69,6 +70,7 @@ export default async function PlaylistPage({ params, searchParams }: { params: P
          </div>
 
          {/* Course Study hub */}
+         <CourseTracker playlistId={id} items={playlist.items.map(i => ({ id: i.id, title: i.title }))} doneIds={[...completedIds]} />
          <CourseStudy deck={courseDeck} doneCount={completed.length} totalCount={playlist.items.length} />
 
          <div className="glass border border-border/50 rounded-3xl overflow-hidden shadow-xl shadow-foreground/5">

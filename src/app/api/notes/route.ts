@@ -15,6 +15,7 @@ CRITICAL RULES - violating these is failure:
 4. Use plain dashes (-) for bullet points only. No other markdown.
 5. Write in student voice: "The instructor explains...", "Key concept:", "IMPORTANT:", "Note to self:", "Example given:"
 6. Every bullet must reference something SPECIFIC from the video — exact names, numbers, timestamps, quotes, frameworks, or examples. No generic filler.
+7. COVER EVERY POINT, CONCISELY: include every single distinct point, fact, name, number, and example the video makes — but write each as a tight, dense bullet. No padding, no repeated re-explanations, no fluff. Complete coverage in the fewest words.
 7. TOPIC ORDERING: If the provided Video Content includes a "TOPICS" list, organize your note pages around those themes IN THE EXACT ORDER GIVEN. Name each page after the theme it covers and group its related material there. This replaces chronological page order.
 
 EXACT OUTPUT FORMAT — use this precisely:

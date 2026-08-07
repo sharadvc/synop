@@ -68,3 +68,12 @@ model ChannelWatch {
   lastVideoId   String?
   createdAt     DateTime  @default(now())
 }
+
+model SharedDeck {
+  id        String   @id @default(cuid())
+  title     String
+  sourceUrl String?
+  deck      String
+  views     Int      @default(0)
+  createdAt DateTime @default(now())
+}
