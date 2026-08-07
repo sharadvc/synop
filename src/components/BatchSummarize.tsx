@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Sparkles, CheckCircle2, AlertCircle, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { aiHeaders } from "@/lib/client-ai";
 
 interface BatchSummarizeProps {
   /** The unprocessed videos in the playlist. */
@@ -14,13 +15,6 @@ interface Result {
   title: string;
   ok: boolean;
 }
-
-const apiHeaders = () => ({
-  "Content-Type": "application/json",
-  "x-gemini-key": localStorage.getItem("gemini_key") || "",
-  "x-groq-key": localStorage.getItem("groq_key") || "",
-  "x-openrouter-key": localStorage.getItem("openrouter_key") || "",
-});
 
 /**
  * "Summarize All Unprocessed" for a course playlist.
@@ -54,7 +48,7 @@ export default function BatchSummarize({ items, language }: BatchSummarizeProps)
       try {
         const res = await fetch("/api/summarize", {
           method: "POST",
-          headers: apiHeaders(),
+          headers: aiHeaders(),
           body: JSON.stringify({ url: `https://youtube.com/watch?v=${it.id}`, language }),
         });
         const j = await res.json();

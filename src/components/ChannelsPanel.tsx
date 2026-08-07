@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Search, Plus, X, Loader2, RefreshCw, Radio, Bell, Sparkles, CheckCircle2, Play } from "lucide-react";
+import { aiHeaders } from "@/lib/client-ai";
 
 interface ChannelInfo {
   channelId: string;
@@ -28,13 +29,6 @@ interface CheckResult {
   uploads: NewVideo[];
   newVideos: NewVideo[];
 }
-
-const apiHeaders = () => ({
-  "Content-Type": "application/json",
-  "x-gemini-key": localStorage.getItem("gemini_key") || "",
-  "x-groq-key": localStorage.getItem("groq_key") || "",
-  "x-openrouter-key": localStorage.getItem("openrouter_key") || "",
-});
 
 export default function ChannelsPanel({ language = "English" }: { language?: string }) {
   const [query, setQuery] = useState("");
@@ -112,7 +106,7 @@ export default function ChannelsPanel({ language = "English" }: { language?: str
       try {
         await fetch("/api/summarize", {
           method: "POST",
-          headers: apiHeaders(),
+          headers: aiHeaders(),
           body: JSON.stringify({ url: `https://youtube.com/watch?v=${videos[i].id}`, language }),
         });
       } catch {}

@@ -2,16 +2,46 @@
  * Shared AI provider layer for Phase 2 features.
  *
  * Reuses the exact BYOK fallback chain already proven in /api/summarize:
- *   TIER 1: Gemini  -> TIER 2: Groq  -> TIER 3: OpenRouter (free models)
+ *   TIER 0: user-configured custom providers (any OpenAI-compatible endpoint)
+ *   TIER 1: OpenRouter (free models) -> TIER 2: Groq -> TIER 3: Gemini
  *
  * `llmJson<T>` guarantees a parsed object (or throws), so every feature
  * consumes a deterministic JSON shape regardless of which provider answered.
  */
+
+/** A user-defined provider: any OpenAI-compatible /chat/completions endpoint. */
+export interface CustomProvider {
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  models: string[];
+}
+
 export type AiKeys = {
   gemini?: string | null;
   groq?: string | null;
   openrouter?: string | null;
+  customProviders?: CustomProvider[];
 };
+
+/** Read user-defined providers from the `x-custom-providers` header. */
+export function resolveCustomProviders(headers?: Headers): CustomProvider[] {
+  const raw = headers?.get('x-custom-providers');
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return (Array.isArray(arr) ? arr : [])
+      .filter(p => p?.baseUrl && p?.apiKey && Array.isArray(p.models) && p.models.length)
+      .map(p => ({
+        name: String(p.name || 'Custom'),
+        baseUrl: String(p.baseUrl).replace(/\/+$/, ''),
+        apiKey: String(p.apiKey),
+        models: p.models.map(String).filter(Boolean),
+      }));
+  } catch {
+    return [];
+  }
+}
 
 /** Pull keys from request headers first (BYOK), then server env. */
 export function resolveKeys(headers?: Headers): AiKeys {
@@ -23,7 +53,48 @@ export function resolveKeys(headers?: Headers): AiKeys {
       process.env.OPENROUTER_API_KEY ||
       process.env.OPENAI_API_KEY ||
       null,
+    customProviders: resolveCustomProviders(headers),
   };
+}
+
+/**
+ * OpenAI-compatible chat completion against a user-configured endpoint.
+ * Returns the raw content string, or null on any failure (so the chain moves on).
+ * No `response_format` is sent — maximum compatibility (Ollama, LM Studio, etc.)
+ * relies on extractJson to parse the answer.
+ */
+export async function callCustomProvider(
+  provider: CustomProvider,
+  model: string,
+  system: string,
+  user: string,
+  temperature = 0.2,
+  maxTokens = 4096,
+): Promise<string | null> {
+  try {
+    const res = await fetch(`${provider.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${provider.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        temperature,
+        max_tokens: maxTokens,
+      }),
+      signal: AbortSignal.timeout(120000),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.choices?.[0]?.message?.content || null;
+  } catch {
+    return null;
+  }
 }
 
 export function extractJson(raw: string): any {
@@ -87,6 +158,21 @@ export async function llmJson<T>(opts: LlmOptions): Promise<T> {
   } = opts;
 
   let lastErr: Error | null = null;
+
+  // ── TIER 0: user-configured custom providers (BYOK endpoints) ────────────
+  if (keys.customProviders && keys.customProviders.length > 0) {
+    for (const provider of keys.customProviders) {
+      for (const model of provider.models) {
+        const truncated = user.length > maxUserChars
+          ? user.slice(0, maxUserChars) + '\n\n[INPUT TRUNCATED]'
+          : user;
+        const content = await callCustomProvider(provider, model, system, truncated, temperature, maxTokens);
+        if (content) {
+          try { return extractJson(content) as T; } catch {}
+        }
+      }
+    }
+  }
 
   // ── TIER 1: OpenRouter (the reliable path — validated working free models) ─
   const openRouterKey = keys.openrouter;

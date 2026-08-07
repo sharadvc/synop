@@ -4,6 +4,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import Groq from 'groq-sdk';
+import { resolveCustomProviders } from '@/lib/ai';
 
 export const maxDuration = 60;
 
@@ -83,6 +84,26 @@ Verdict: ${summary.verdict}
 
     let responseText = '';
     const errors: string[] = [];
+
+    // Provider 0: user-configured custom providers (BYOK endpoints)
+    if (!responseText) {
+      const customProviders = resolveCustomProviders(req.headers);
+      for (const p of customProviders) {
+        try {
+          const client = createOpenAI({ baseURL: p.baseUrl, apiKey: p.apiKey });
+          const result = await generateText({
+            model: client(p.models[0]),
+            system: systemPrompt,
+            messages: chatMessages,
+            temperature: 0.7,
+            maxRetries: 1,
+          });
+          if (result.text) { responseText = result.text; break; }
+        } catch (err: any) {
+          errors.push(`Custom ${p.name}: ${err.message}`);
+        }
+      }
+    }
 
     // Provider 1: Groq (fastest, most reliable with native SDK)
     if (!responseText && groqKey) {

@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { use, useEffect, useState, useRef, useMemo } from "react";
 import { useLanguage } from "@/context/LanguageContext";
+import { aiHeaders } from "@/lib/client-ai";
 import { motion } from "framer-motion";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -136,10 +137,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       const res = await fetch('/api/notes', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-gemini-key': localStorage.getItem('gemini_key') || '',
-          'x-groq-key': localStorage.getItem('groq_key') || '',
-          'x-openrouter-key': localStorage.getItem('openrouter_key') || '',
+          ...aiHeaders(),
         },
         body: JSON.stringify({ videoId: id, language }),
       });
@@ -181,10 +179,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       const res = await fetch('/api/enrich', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-gemini-key': localStorage.getItem('gemini_key') || '',
-          'x-groq-key': localStorage.getItem('groq_key') || '',
-          'x-openrouter-key': localStorage.getItem('openrouter_key') || '',
+          ...aiHeaders(),
         },
         body: JSON.stringify({ videoId: id, language }),
       });
@@ -257,10 +252,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-gemini-key': localStorage.getItem('gemini_key') || '',
-          'x-groq-key': localStorage.getItem('groq_key') || '',
-          'x-openrouter-key': localStorage.getItem('openrouter_key') || '',
+          ...aiHeaders(),
         },
         body: JSON.stringify({
           messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
@@ -550,21 +542,11 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
 
   useEffect(() => {
     setLoading(true); setError(null);
-    
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    const gemini = localStorage.getItem('gemini_key');
-    const groq = localStorage.getItem('groq_key');
-    const openrouter = localStorage.getItem('openrouter_key');
-    if (gemini) headers['x-gemini-key'] = gemini;
-    fetch(`/api/summarize`, { 
-       method: 'POST', 
-       headers: { 
-         'Content-Type': 'application/json',
-         'x-gemini-key': localStorage.getItem('gemini_key') || '',
-         'x-groq-key': localStorage.getItem('groq_key') || '',
-         'x-openrouter-key': localStorage.getItem('openrouter_key') || ''
-       },
-       body: JSON.stringify({ url: `https://youtube.com/watch?v=${id}`, language, customPrompt }) 
+
+    fetch(`/api/summarize`, {
+       method: 'POST',
+       headers: aiHeaders(),
+       body: JSON.stringify({ url: `https://youtube.com/watch?v=${id}`, language, customPrompt })
     })
       .then(r => r.json())
       .then(j => {

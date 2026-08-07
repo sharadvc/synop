@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu, Radio } from "lucide-react";
+import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu, Radio, Cpu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { getDashboardData } from "@/actions/dashboard";
 import { createFolder, deleteFolder, assignToFolder } from "@/actions/folders";
 import { useLanguage } from "@/context/LanguageContext";
 import ChannelsPanel from "@/components/ChannelsPanel";
+import { aiHeaders } from "@/lib/client-ai";
 
 function extractVideoId(url: string) {
   const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
@@ -38,6 +39,20 @@ export default function DashboardPage() {
   // API Keys state
   const [keys, setKeys] = useState({ gemini: "", groq: "", openrouter: "", notion: "", notionDb: "", tavily: "" });
   const [keysLoaded, setKeysLoaded] = useState(false);
+  // Custom AI providers (any OpenAI-compatible endpoint)
+  const [customProviders, setCustomProviders] = useState<{ name: string; baseUrl: string; apiKey: string; models: string }[]>([]);
+  const [cpName, setCpName] = useState("");
+  const [cpBaseUrl, setCpBaseUrl] = useState("");
+  const [cpApiKey, setCpApiKey] = useState("");
+  const [cpModels, setCpModels] = useState("");
+  const [cpSaved, setCpSaved] = useState(false);
+
+  const saveCustomProviders = (next: { name: string; baseUrl: string; apiKey: string; models: string }[]) => {
+    setCustomProviders(next);
+    localStorage.setItem('custom_llm_providers', JSON.stringify(next));
+    setCpSaved(true);
+    setTimeout(() => setCpSaved(false), 2000);
+  };
 
   const tabs = [
     { name: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -87,6 +102,7 @@ export default function DashboardPage() {
       tavily: localStorage.getItem('tavily_key') || "",
     });
     setKeysLoaded(true);
+    try { setCustomProviders(JSON.parse(localStorage.getItem('custom_llm_providers') || '[]')); } catch { setCustomProviders([]); }
   }, [language]);
 
   const updateKey = (provider: 'gemini' | 'groq' | 'openrouter' | 'notion' | 'notionDb' | 'tavily', val: string) => {
@@ -884,6 +900,64 @@ export default function DashboardPage() {
                       </div>
                    </div>
                 </div>
+
+                {/* Custom AI Providers */}
+                <div className="glass border border-border/50 rounded-3xl p-8 shadow-xl shadow-foreground/5">
+                   <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
+                     <Cpu className="w-5 h-5 text-primary" /> Custom AI Providers
+                   </h3>
+                   <p className="text-sm text-foreground/50 mb-6 leading-relaxed">
+                     Add any OpenAI-compatible endpoint — OpenAI, DeepSeek, Ollama, Together, your own server.
+                     Custom providers are tried <strong>first</strong>, then the keys above.
+                   </p>
+
+                   {customProviders.length > 0 && (
+                     <div className="space-y-2 mb-6">
+                       {customProviders.map((p, i) => (
+                         <div key={i} className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-foreground/5 border border-border/40">
+                           <div className="min-w-0">
+                             <div className="font-bold text-sm truncate">{p.name}</div>
+                             <div className="text-[11px] text-foreground/50 truncate">{p.baseUrl} · {p.models}</div>
+                           </div>
+                           <button onClick={() => saveCustomProviders(customProviders.filter((_, idx) => idx !== i))} className="text-foreground/40 hover:text-red-500 text-xs font-bold shrink-0">Remove</button>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+
+                   <div className="space-y-4">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div>
+                          <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2">Provider Name</label>
+                          <input type="text" placeholder="e.g. My DeepSeek" value={cpName} onChange={e => setCpName(e.target.value)} className="w-full h-12 glass border border-border/50 rounded-xl px-4 text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all" />
+                       </div>
+                       <div>
+                          <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2">Base URL</label>
+                          <input type="text" placeholder="https://api.deepseek.com/v1" value={cpBaseUrl} onChange={e => setCpBaseUrl(e.target.value)} className="w-full h-12 glass border border-border/50 rounded-xl px-4 text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all" />
+                       </div>
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2">API Key</label>
+                        <input type="password" placeholder="sk-..." value={cpApiKey} onChange={e => setCpApiKey(e.target.value)} className="w-full h-12 glass border border-border/50 rounded-xl px-4 text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all" />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2">Models (comma-separated, tried in order)</label>
+                        <input type="text" placeholder="deepseek-chat, deepseek-reasoner" value={cpModels} onChange={e => setCpModels(e.target.value)} className="w-full h-12 glass border border-border/50 rounded-xl px-4 text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all" />
+                     </div>
+                     <button
+                       onClick={() => {
+                         const models = cpModels.split(',').map(m => m.trim()).filter(Boolean);
+                         if (!cpName.trim() || !cpBaseUrl.trim() || !cpApiKey.trim() || models.length === 0) return;
+                         saveCustomProviders([...customProviders, { name: cpName.trim(), baseUrl: cpBaseUrl.trim(), apiKey: cpApiKey.trim(), models: models.join(', ') }]);
+                         setCpName(""); setCpBaseUrl(""); setCpApiKey(""); setCpModels("");
+                       }}
+                       className="w-full h-12 bg-foreground text-background rounded-xl text-sm font-bold hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-2"
+                     >
+                       <Plus className="w-4 h-4" /> Add Provider
+                     </button>
+                     {cpSaved && <p className="text-xs font-bold text-green-600">Saved — new requests will use this provider first.</p>}
+                   </div>
+                </div>
               </div>
            )}
 
@@ -988,12 +1062,7 @@ function DashboardChat({ summaries }: { summaries: any[] }) {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-gemini-key': localStorage.getItem('gemini_key') || '',
-          'x-groq-key': localStorage.getItem('groq_key') || '',
-          'x-openrouter-key': localStorage.getItem('openrouter_key') || '',
-        },
+        headers: aiHeaders(),
         body: JSON.stringify({
           messages: updated.map(m => ({ role: m.role, content: m.content })),
           videoId: selectedVideoId,

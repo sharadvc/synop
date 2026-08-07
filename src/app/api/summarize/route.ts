@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { extractVideoId, getTranscript } from '@/lib/youtube';
 import { db } from '@/lib/db';
+import { callCustomProvider, resolveCustomProviders, type CustomProvider } from '@/lib/ai';
 export const maxDuration = 120;
 
 /**
@@ -131,11 +132,25 @@ type CustomKeys = {
   gemini?: string | null;
   groq?: string | null;
   openrouter?: string | null;
+  customProviders?: CustomProvider[];
 };
 
 async function callModelWithFallback(transcript: string, keys: CustomKeys, language: string = 'English', customPrompt?: string): Promise<any> {
   const SUMMARY_PROMPT = buildSummaryPrompt(language, customPrompt);
   let lastErr: Error | null = null;
+
+  // TIER 0: user-configured custom providers (BYOK endpoints)
+  if (keys.customProviders && keys.customProviders.length > 0) {
+    for (const provider of keys.customProviders) {
+      for (const model of provider.models) {
+        console.log(`[AI Pipeline] Attempting custom ${provider.name}/${model}...`);
+        const content = await callCustomProvider(provider, model, SUMMARY_PROMPT, transcript.substring(0, 30000), 0.2, 8192);
+        if (content) {
+          try { return extractJson(content); } catch { /* malformed JSON → try next */ }
+        }
+      }
+    }
+  }
 
   // TIER 1: OpenRouter free models (the reliable path — validated working).
   const openRouterKey = keys.openrouter || process.env.OPENAI_API_KEY;
@@ -319,6 +334,7 @@ export async function POST(req: Request) {
           gemini: req.headers.get('x-gemini-key'),
           groq: req.headers.get('x-groq-key'),
           openrouter: req.headers.get('x-openrouter-key'),
+          customProviders: resolveCustomProviders(req.headers),
         };
 
         summary = await callModelWithFallback(transcript, customKeys, language, customPrompt);

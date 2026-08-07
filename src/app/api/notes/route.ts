@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { callCustomProvider, resolveCustomProviders, type CustomProvider } from '@/lib/ai';
 
 export const maxDuration = 120;
 
@@ -79,6 +80,7 @@ type CustomKeys = {
   gemini?: string | null;
   groq?: string | null;
   openrouter?: string | null;
+  customProviders?: CustomProvider[];
 };
 
 async function callGemini(summaryContext: string, key: string, language: string = "English"): Promise<string | null> {
@@ -176,7 +178,15 @@ function generateFallbackNotes(summary: any): string {
   return lines.join('\n');
 }
 
-async function callNotesModel(summaryContext: string, summary: any, keys: CustomKeys): Promise<string> {
+async function callNotesModel(summaryContext: string, summary: any, keys: CustomKeys, language: string = "English"): Promise<string> {
+  // Custom providers first (user-configured BYOK endpoints).
+  for (const p of keys.customProviders || []) {
+    for (const model of p.models) {
+      const result = await callCustomProvider(p, model, buildNotesPrompt(language), "Video Content:\n\n" + summaryContext, 0.7, 8000);
+      if (result) return result;
+    }
+  }
+
   const geminiKey = keys.gemini || process.env.GEMINI_API_KEY;
   if (geminiKey) {
     const result = await callGemini(summaryContext, geminiKey);
@@ -227,9 +237,10 @@ export async function POST(req: Request) {
       gemini: req.headers.get('x-gemini-key'),
       groq: req.headers.get('x-groq-key'),
       openrouter: req.headers.get('x-openrouter-key'),
+      customProviders: resolveCustomProviders(req.headers),
     };
 
-    const notes = await callNotesModel(summaryContext, summary, customKeys);
+    const notes = await callNotesModel(summaryContext, summary, customKeys, language);
 
     await db.summary.update({
       where: { id: summary.id },
