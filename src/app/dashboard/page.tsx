@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu, Radio, Cpu } from "lucide-react";
+import { ArrowRight, Play, Search, LayoutDashboard, Folder, MessageSquare, FileText, Receipt, Plus, Users, CheckCircle2, Clock, Zap, Loader2, Send, Download, File, Settings, CreditCard, DownloadCloud, Trash, FolderPlus, X, User, Menu, Radio, Cpu, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { getDashboardData } from "@/actions/dashboard";
@@ -46,12 +46,45 @@ export default function DashboardPage() {
   const [cpApiKey, setCpApiKey] = useState("");
   const [cpModels, setCpModels] = useState("");
   const [cpSaved, setCpSaved] = useState(false);
+  // Live model picker
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
 
   const saveCustomProviders = (next: { name: string; baseUrl: string; apiKey: string; models: string }[]) => {
     setCustomProviders(next);
     localStorage.setItem('custom_llm_providers', JSON.stringify(next));
     setCpSaved(true);
     setTimeout(() => setCpSaved(false), 2000);
+  };
+
+  const fetchModels = async () => {
+    if (!cpBaseUrl.trim()) { setModelsError('Enter a base URL first.'); return; }
+    setFetchingModels(true); setModelsError(null); setAvailableModels([]); setSelectedModels([]);
+    try {
+      const res = await fetch('/api/providers/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseUrl: cpBaseUrl.trim(), apiKey: cpApiKey.trim() }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Could not fetch models');
+      setAvailableModels(j.models || []);
+      if (!j.models?.length) setModelsError('No models found on that endpoint.');
+    } catch (e: any) {
+      setModelsError(e.message || 'Could not fetch models');
+    } finally {
+      setFetchingModels(false);
+    }
+  };
+
+  const toggleModel = (m: string) => setSelectedModels(p => p.includes(m) ? p.filter(x => x !== m) : [...p, m]);
+
+  const useSelectedModels = () => {
+    if (selectedModels.length) setCpModels(selectedModels.join(', '));
+    setAvailableModels([]);
+    setSelectedModels([]);
   };
 
   const tabs = [
@@ -941,8 +974,39 @@ export default function DashboardPage() {
                         <input type="password" placeholder="sk-..." value={cpApiKey} onChange={e => setCpApiKey(e.target.value)} className="w-full h-12 glass border border-border/50 rounded-xl px-4 text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all" />
                      </div>
                      <div>
-                        <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2">Models (comma-separated, tried in order)</label>
-                        <input type="text" placeholder="deepseek-chat, deepseek-reasoner" value={cpModels} onChange={e => setCpModels(e.target.value)} className="w-full h-12 glass border border-border/50 rounded-xl px-4 text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all" />
+                        <label className="block text-xs font-bold text-foreground/70 uppercase tracking-wider mb-2">Models (tried in order)</label>
+                        <div className="flex gap-2 mb-2">
+                          <button
+                            onClick={fetchModels}
+                            disabled={fetchingModels || !cpBaseUrl.trim()}
+                            className="h-10 px-4 bg-primary text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
+                          >
+                            {fetchingModels ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                            {fetchingModels ? 'Fetching…' : 'Fetch live models'}
+                          </button>
+                          <button onClick={useSelectedModels} disabled={selectedModels.length === 0} className="h-10 px-4 bg-foreground/10 text-foreground rounded-xl text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-40">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Use selected ({selectedModels.length})
+                          </button>
+                        </div>
+                        {modelsError && <p className="text-xs font-medium text-red-500 mb-2">{modelsError}</p>}
+                        {availableModels.length > 0 && (
+                          <div className="mb-2 max-h-44 overflow-y-auto border border-border/50 rounded-xl p-2 space-y-0.5 bg-background/40">
+                            {availableModels.map(m => (
+                              <label key={m} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-foreground/5 cursor-pointer">
+                                <input type="checkbox" checked={selectedModels.includes(m)} onChange={() => toggleModel(m)} className="accent-primary w-4 h-4" />
+                                <span className="text-[13px] font-medium text-foreground/80 truncate">{m}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        {cpModels && (
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {cpModels.split(',').map(m => m.trim()).filter(Boolean).map((m, i) => (
+                              <span key={i} className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-bold text-primary">{m}</span>
+                            ))}
+                          </div>
+                        )}
+                        <input type="text" placeholder="…or type manually, comma-separated" value={cpModels} onChange={e => setCpModels(e.target.value)} className="w-full h-11 glass border border-border/50 rounded-xl px-4 text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all" />
                      </div>
                      <button
                        onClick={() => {
