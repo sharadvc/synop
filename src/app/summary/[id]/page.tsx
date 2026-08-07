@@ -1,7 +1,7 @@
 "use client";
 
 import Navbar from "@/components/Navbar";
-import { Copy, Download, Share2, Clock, CheckCircle2, Loader2, AlertCircle, FileText, ArrowLeft, Lightbulb, ListTodo, Bookmark, Cpu, Quote, BrainCircuit, Boxes, Scale, Target, PenTool, Video, GraduationCap, Gauge, Tags, Gavel, ShieldCheck, Database, RefreshCw, Sparkles } from "lucide-react";
+import { Copy, Download, Share2, Clock, CheckCircle2, Loader2, AlertCircle, FileText, ArrowLeft, Lightbulb, ListTodo, Bookmark, Cpu, Quote, Boxes, Scale, Target, PenTool, Video, GraduationCap, Tags, Gavel, ShieldCheck, Database, RefreshCw, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -10,14 +10,10 @@ import { useLanguage } from "@/context/LanguageContext";
 import { aiHeaders } from "@/lib/client-ai";
 import { getPersona, personaDef, type PersonaId } from "@/lib/persona";
 import { motion } from "framer-motion";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import YouTube from 'react-youtube';
 
-import { MessageSquare, Send, X, ExternalLink, Play, Network } from 'lucide-react';
+import { MessageSquare, X, ExternalLink } from 'lucide-react';
 import dynamic from 'next/dynamic';
-
-const FrameworkDiagram = dynamic(() => import('@/components/FrameworkDiagram'), { ssr: false });
 
 interface SummaryData {
   executiveSummary: string;
@@ -111,7 +107,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     setActiveTab(personaDef(p).defaultTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [exportingNotion, setExportingNotion] = useState(false);
   const [notionResult, setNotionResult] = useState<string | null>(null);
@@ -217,68 +212,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
 
   // YouTube Player State
   const [youtubePlayer, setYoutubePlayer] = useState<any>(null);
-  const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
-  const requestRef = useRef<number | undefined>(undefined);
-
-  const updateTime = () => {
-    if (youtubePlayer) {
-      setCurrentVideoTime(youtubePlayer.getCurrentTime() || 0);
-    }
-    requestRef.current = requestAnimationFrame(updateTime);
-  };
-
-  useEffect(() => {
-    if (youtubePlayer) {
-      requestRef.current = requestAnimationFrame(updateTime);
-    }
-    return () => {
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    };
-  }, [youtubePlayer]);
-
-  // Chat state (no SDK dependency)
-  const [chatMessages, setChatMessages] = useState<{id: string; role: 'user' | 'assistant'; content: string}[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatError, setChatError] = useState<string | null>(null);
-
-  const sendChatMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = chatInput.trim();
-    if (!text || chatLoading) return;
-
-    const userMsg = { id: Date.now().toString(), role: 'user' as const, content: text };
-    const updatedMessages = [...chatMessages, userMsg];
-    setChatMessages(updatedMessages);
-    setChatInput('');
-    setChatLoading(true);
-    setChatError(null);
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          ...aiHeaders(),
-        },
-        body: JSON.stringify({
-          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
-          videoId: id,
-          language,
-          persona: getPersona(),
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Chat request failed');
-
-      const aiMsg = { id: (Date.now() + 1).toString(), role: 'assistant' as const, content: data.reply };
-      setChatMessages(prev => [...prev, aiMsg]);
-    } catch (err: any) {
-      setChatError(err.message || 'Failed to send message');
-    } finally {
-      setChatLoading(false);
-    }
-  };
 
   const generateMarkdown = () => {
     if (!data?.summary) return "";
@@ -308,7 +241,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     if (s.biasAnalysis && Array.isArray(s.biasAnalysis)) {
       md += `## Bias & Critique\n${s.biasAnalysis.map(b => `- ${b}`).join('\n')}\n\n`;
     }
-    md += `## Verdict\n${s.verdict || ''}`;
     return md;
   };
 
@@ -368,10 +300,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       if (s.biasAnalysis && s.biasAnalysis.length > 0) {
         bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Bias Analysis</h2>`;
         bodyHtml += `<ul style="padding-left:20px">${renderList(s.biasAnalysis)}</ul>`;
-      }
-      if (s.verdict) {
-        bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Verdict</h2>`;
-        bodyHtml += `<p style="font-size:15px;font-weight:600;font-style:italic;color:#333;margin-bottom:20px">${esc(s.verdict)}</p>`;
       }
       if (s.frameworks && s.frameworks.length > 0) {
         bodyHtml += `<h2 style="font-size:20px;font-weight:700;border-bottom:2px solid #000;padding-bottom:8px;margin:24px 0 12px">Frameworks</h2>`;
@@ -477,18 +405,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
       setObsidianResult(err.message || 'Obsidian export failed');
     } finally {
       setSyncingObsidian(false);
-    }
-  };
-
-  const seekTo = (timeStr: string) => {
-    const parts = timeStr.split(':').map(Number);
-    let seconds = 0;
-    if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-    else if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
-    
-    if (youtubePlayer) {
-      youtubePlayer.seekTo(seconds, true);
-      youtubePlayer.playVideo();
     }
   };
 
@@ -728,11 +644,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                        <div className="text-[16px] md:text-[18px] font-medium leading-relaxed text-background/80 space-y-6 whitespace-pre-wrap tracking-wide">
                           {summary.executiveSummary}
                        </div>
-                       
-                       <div className="mt-12 pt-8 border-t border-background/20">
-                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-background/50 mb-3">The Verdict</p>
-                          <p className="text-lg md:text-xl font-bold text-background leading-relaxed">{summary.verdict}</p>
-                       </div>
                     </div>
                   </div>
 
@@ -924,8 +835,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {summary.frameworks.map((fw, i) => (
                           <div key={i} className="glass border border-border/50 p-8 rounded-[2rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all">
-                            <FrameworkDiagram name={fw.name} description={fw.description} />
-                            <h3 className="text-xl font-bold font-serif text-foreground mb-2 mt-2">{fw.name}</h3>
+                            <h3 className="text-xl font-bold font-serif text-foreground mb-4">{fw.name}</h3>
                             <p className="text-[15px] font-medium leading-relaxed text-foreground/80">{fw.description}</p>
                           </div>
                         ))}
@@ -1212,116 +1122,6 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
         </div>
       </main>
 
-      {/* Extreme Floating Chat Panel */}
-      {summary && (
-        <div className="fixed bottom-6 right-6 z-50">
-          {isChatOpen ? (
-            <motion.div 
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="bg-background border border-foreground/10 rounded-3xl shadow-2xl w-[380px] h-[600px] max-h-[80vh] flex flex-col overflow-hidden"
-            >
-              {/* Chat Header */}
-              <div className="flex items-center justify-between p-4 border-b border-foreground/5 bg-foreground/5">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center">
-                    <BrainCircuit className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold">Synop</h3>
-                    <p className="text-[10px] text-foreground/50 uppercase tracking-widest font-bold">Ask anything about this video</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsChatOpen(false)} className="p-2 hover:bg-foreground/10 rounded-full transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {chatMessages.length === 0 && (
-                  <div className="text-center text-foreground/40 text-sm mt-10">
-                    Ask me for specific timestamps, detailed explanations, or to synthesize ideas from the video!
-                  </div>
-                )}
-                {chatMessages.map(m => (
-                  <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] rounded-2xl p-3 text-sm ${m.role === 'user' ? 'bg-foreground text-background rounded-br-none' : 'bg-foreground/5 rounded-bl-none prose prose-sm prose-p:leading-relaxed prose-pre:bg-foreground/10'}`}>
-                      {m.role === 'user' ? (
-                        m.content
-                      ) : (
-                        <ReactMarkdown 
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            a: ({node, ...props}) => {
-                              if (props.href?.startsWith('#seek:')) {
-                                const time = props.href.split('#seek:')[1];
-                                return (
-                                  <button 
-                                    onClick={() => seekTo(time)}
-                                    className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer border border-primary/20 mx-1 font-mono font-bold align-middle"
-                                  >
-                                    <Play className="w-2 h-2 mr-1 inline" /> {time}
-                                  </button>
-                                )
-                              }
-                              return <a {...props} className="text-primary hover:underline" />
-                            }
-                          }}
-                        >
-                          {m.content.replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g, '[$1](#seek:$1)')}
-                        </ReactMarkdown>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {chatLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-foreground/5 rounded-2xl rounded-bl-none p-3 px-4 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                )}
-                {chatError && (
-                  <div className="flex justify-start mt-2">
-                    <div className="bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl p-3 text-xs">
-                      Failed to connect: {chatError}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Chat Input */}
-              <div className="p-4 border-t border-foreground/5">
-                <form onSubmit={sendChatMessage} className="relative flex items-center">
-                  <input
-                    value={chatInput}
-                    onChange={e => setChatInput(e.target.value)}
-                    placeholder="Ask about the video..."
-                    className="w-full bg-foreground/5 border-none rounded-full pl-5 pr-12 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground/20 placeholder:text-foreground/30 font-medium"
-                  />
-                  <button type="submit" disabled={chatLoading || !chatInput.trim()} className="absolute right-2 p-2 bg-foreground text-background rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100">
-                    <Send className="w-4 h-4" />
-                  </button>
-                </form>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.button 
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              whileHover={{ scale: 1.05 }}
-              onClick={() => setIsChatOpen(true)}
-              className="w-14 h-14 bg-foreground text-background rounded-full shadow-2xl shadow-foreground/20 flex items-center justify-center cursor-pointer hover:-translate-y-1 transition-transform"
-            >
-              <MessageSquare className="w-6 h-6" />
-            </motion.button>
-          )}
-        </div>
-      )}
 
       {/* Sync to Knowledge Base Modal */}
       {showSync && (
