@@ -39,6 +39,9 @@ export default function DashboardPage() {
   // Persona (first-run onboarding)
   const [persona, setPersona] = useState<PersonaId>('general');
   const [showOnboarding, setShowOnboarding] = useState(false);
+  // Hydration-safe time/date rendering (avoid SSR vs client mismatch).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
   
@@ -435,7 +438,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6 animate-rise stagger-1">
-             <div className="hidden md:block text-[11px] font-bold text-foreground/40 uppercase tracking-[0.2em]">{today}</div>
+             <div className="hidden md:block text-[11px] font-bold text-foreground/40 uppercase tracking-[0.2em]">{mounted ? today : ''}</div>
              
              {/* Input Bar inside header */}
              <div className="flex items-center gap-3 w-full md:w-auto">
@@ -486,7 +489,7 @@ export default function DashboardPage() {
            </div>
           
           <h2 className="text-4xl md:text-5xl font-serif text-foreground mb-12 tracking-tight animate-rise stagger-2">
-              Good {new Date().getHours() < 12 ? 'Morning' : 'Evening'}{userName ? `, ${userName}` : ''}
+              {mounted ? `Good ${new Date().getHours() < 12 ? 'Morning' : 'Evening'}` : 'Good day'}{userName ? `, ${userName}` : ''}
           </h2>
 
           {persona !== 'general' && (

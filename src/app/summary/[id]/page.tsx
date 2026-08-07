@@ -474,7 +474,7 @@ export default function SummaryPage({ params }: { params: Promise<{ id: string }
     ];
   }, [summary, topicClusters]);
 
-  const dueCount = dueReviewIndices().length;
+  const dueCount = typeof window !== 'undefined' ? dueReviewIndices().length : 0;
 
   const studyQuiz = useMemo(() => {
     if (!summary) return [] as { question: string; correct: string; options: string[] }[];

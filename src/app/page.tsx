@@ -614,7 +614,7 @@ export default function Home() {
               <Link href="https://github.com/sharadvc/synop/issues" target="_blank" className="hover:text-primary transition-colors">Issues & Ideas</Link>
               <Link href="https://github.com/sharadvc/synop/blob/main/LICENSE" target="_blank" className="hover:text-primary transition-colors">MIT License</Link>
            </div>
-           <p className="text-xs font-medium text-foreground/40">© {new Date().getFullYear()} Synop. Open source.</p>
+           <p className="text-xs font-medium text-foreground/40">© 2026 Synop. Open source.</p>
         </div>
       </footer>
     </div>

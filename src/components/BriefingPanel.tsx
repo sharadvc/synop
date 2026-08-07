@@ -19,7 +19,11 @@ interface NewVideo {
 export default function BriefingPanel({ summaries }: { summaries: any[] }) {
   const [checking, setChecking] = useState(false);
   const [newVideos, setNewVideos] = useState<NewVideo[]>([]);
+  // Hydration-safe date (render after mount to avoid SSR/client mismatch).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
+  // Check watched channels for new uploads.
   useEffect(() => {
     (async () => {
       setChecking(true);
@@ -47,7 +51,7 @@ export default function BriefingPanel({ summaries }: { summaries: any[] }) {
         </div>
         <div>
           <h3 className="text-xl font-bold text-foreground">Your Briefing</h3>
-          <p className="text-sm text-foreground/50">{date}</p>
+          <p className="text-sm text-foreground/50">{mounted ? date : ''}</p>
         </div>
       </div>
 
