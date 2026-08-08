@@ -14,7 +14,6 @@
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
     <img src="https://img.shields.io/badge/Next.js-16-black" alt="Next.js 16" />
     <img src="https://img.shields.io/badge/stack-OpenAI--compatible-purple" alt="Any OpenAI-compatible provider" />
-    <img src="https://img.shields.io/badge/PRs-welcome-orange" alt="PRs welcome" />
     <img src="https://img.shields.io/github/stars/sharadvc/synop" alt="GitHub stars" />
   </p>
 
@@ -172,10 +171,6 @@ npx pm2 save
 - **Database** — Prisma + SQLite (local, zero-config)
 - **AI** — any OpenAI-compatible endpoint via a provider-fallback chain, with deterministic no-LLM fallbacks so every feature always returns a result
 - **Persona engine** — prompt tailoring + per-persona summary storage + persona-specific tab layouts
-
-## Contributing
-
-Contributions are welcome — bugs, docs, features, translations. See [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
