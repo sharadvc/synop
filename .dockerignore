@@ -1,0 +1,17 @@
+# Keep the host machine's (macOS) artifacts out of the image build.
+node_modules
+.next
+dev.db
+*.tsbuildinfo
+
+# Local env / secrets — never baked into an image
+.env
+.env.local
+.env*.local
+
+# VCS + tooling
+.git
+.gitignore
+playwright-report
+test-results
+npm-debug.log*

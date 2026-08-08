@@ -47,27 +47,32 @@ A complete, working, persona-aware open-source app:
 - **401 on unauthenticated writes** — `currentUserId()` now returns `string | null`; `requireUserId()` returns `'local'` in open mode, or null when Clerk is on but the request is unauthenticated. All 12 mutating API routes (`summarize`, `enrich`, `chat`, `notes`, `research`, `export/*`, `share/deck`, `watchlist`, `watchlist/check`, `summary/[id]`, `providers/models`) now `if (!uid) return 401` instead of falling back to the shared `'local'` bucket — so no cross-user writes when accounts are on. Reads still `userScope()` (this user + legacy null rows). Middleware already gates `/dashboard`, `/playlist`, `/summary` pages.
 - Verified: `tsc --noEmit` clean, `npm run build` clean. Open mode (no Clerk) still works (everything 401s through to `'local'`).
 
+### 5. Self-hosting polish (DONE, Docker build untested)
+- README "Self-Host with Docker" section + `Dockerfile` + `docker-compose.yml` + `.dockerignore`.
+- `docker compose up --build` → app on :3001 with a bundled Postgres; tables auto-created at boot (`prisma db push --schema prisma/schema.postgres.prisma`).
+- Chose the robust single-stage `next start` image over `output: standalone` (avoids Prisma/external-package tracing gotchas); kept devDeps so the `prisma` CLI is present at boot.
+- **Docker build is untested** — no Docker on this machine. First `docker compose up --build` on a Docker machine is the verification step.
+
 ---
 
 ## TODO (next session)
 
-### A. Deploy & turn accounts on (the big one)
-1. **Host it** — Vercel (or Railway/Fly).
-2. **Create a Postgres DB** — Supabase/Neon → `DATABASE_URL` on the host.
-3. **Push schema**: `npm run db:push:pg`.
-4. **Clerk app** → publishable + secret keys on the host. Auth turns ON automatically (code is wired).
-5. **Verify multi-user**: sign in as 2 users → each sees only their own library; same video summarized by both stays separate.
+> **Direction (2026-08-08):** Synop is a **self-hosted open-source tool**, not a hosted multi-user app. The deploy-with-accounts path is dropped. Auth + Postgres stay in the code but dormant/key-gated. Goal: a polished one-command self-host experience.
 
-### B. Move localStorage features to Postgres (cross-device sync)
-- Course progress (`synop_course_*`), streaks (`synop_streak`), spaced-repetition schedules (`synop_review_*`) are browser-only. To sync across devices, persist them to the DB keyed by `userId` (new model(s) + the components read/write via API instead of localStorage).
+### A. ~~Deploy & turn accounts on~~ — dropped (self-hosting pivot)
+Keep Clerk + Postgres dormant. Revisit only if a public multi-user instance is ever wanted.
 
-### C. Open-source polish / self-hosting docs
-- README "Self-hosting" section (SQLite zero-config vs Postgres multi-device, optional auth, keys).
-- `Dockerfile` + `docker-compose.yml` (Postgres + app) for one-command self-hosting.
+### B. (done) Self-hosting polish
+- README "Self-Host with Docker" section + `Dockerfile` + `docker-compose.yml` + `.dockerignore`.
+- `docker compose up --build` → app on :3001 with bundled Postgres; tables auto-created at boot (`prisma db push`).
+- **Untested locally** (no Docker on this machine) — first build on a Docker machine is the verification step.
+
+### C. Optional — cross-device sync (only with Postgres self-host)
+- Course progress (`synop_course_*`), streaks (`synop_streak`), spaced-repetition schedules (`synop_review_*`) are browser-only. Persist them to the DB keyed by `userId` (new model(s) + the components read/write via API instead of localStorage) so data follows you between devices.
 
 ### D. Optional
-- Public share links (`/share/[id]`) become truly shareable once deployed.
-- Scheduled "auto-summarize" once there's an always-on server.
+- Scheduled "auto-summarize" — Docker now gives an always-on server option.
+- Share links (`/share/[id]`) work per-instance as-is.
 
 ---
 
@@ -79,14 +84,13 @@ A complete, working, persona-aware open-source app:
 >
 > **State:** App is feature-complete locally (SQLite). **userId isolation is DONE** — `Summary`/`Folder`/`ChannelWatch` have `userId`, all routes are scoped via `src/lib/user.ts` (`currentUserId()` + `userScope()`), open mode (no Clerk) verified working. Optional Clerk auth + Postgres schema are wired but untested (need real keys/DB). **Security pass is DONE too** — SSRF protection for custom provider URLs (`src/lib/net.ts`) + 401 on unauthenticated writes via `requireUserId()`.
 >
-> **Next session's goal — DEPLOY + make accounts live:**
-> 1. Read PLAN.md (repo root) + `src/lib/user.ts` + the schema.
-> 2. Walk the user through: creating a Supabase/Neon Postgres DB, a Clerk app, setting `DATABASE_URL` + `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY`, pushing the Postgres schema, deploying to Vercel.
-> 3. After deploy, TEST multi-user isolation: two accounts each see only their own data; the same video summarized by both stays separate.
-> 4. Then move the localStorage features (course progress, streaks, review schedules) into Postgres keyed by userId so they sync across devices.
-> 5. Add README "Self-hosting" section + optionally a Dockerfile.
+> **Next session's goal — polish the self-hosted experience:**
+> 1. Read PLAN.md for the pivot: Synop is a **self-hosted open-source tool** — no hosted accounts. Auth/Postgres code stays dormant & key-gated.
+> 2. Verify Docker on a machine with Docker: `docker compose up --build`, open http://localhost:3001, summarize a video, confirm the library works against the bundled Postgres. Fix any Dockerfile/compose issues found.
+> 3. Confirm `tsc` + `npm run build` pass and git is clean before any commit.
+> 4. Optional: move browser-only features (course progress, streaks, review schedules) into Postgres keyed by `userId` for cross-device sync.
 >
-> Start by confirming git is clean and the app builds, then guide the deploy (item 2).
+> Start by confirming git is clean and the app builds.
 
 ---
 

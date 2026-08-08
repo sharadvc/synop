@@ -120,6 +120,31 @@ Keys are stored in your browser's local storage and sent per-request — nothing
 
 ---
 
+## Self-Host with Docker
+
+One command runs the whole app with its own Postgres database — no Node install, no manual setup. Great for a home server, a Raspberry Pi, or any always-on machine.
+
+```bash
+git clone https://github.com/sharadvc/synop.git
+cd synop
+# optional: put your keys in a .env file (see .env.example)
+docker compose up --build
+```
+
+Open **http://localhost:3001**. The database is created automatically on first boot (`prisma db push`), so there's no migration step.
+
+**Keys.** Most people just paste keys in the app (Settings → BYOK). The only key the *server* needs up front is `YOUTUBE_API_KEY`, for fetching playlists and channel watchlists:
+
+| Variable | Needed for |
+|---|---|
+| `YOUTUBE_API_KEY` | Playlist + channel watchlist fetching (free from Google Cloud Console) |
+| `OPENROUTER_API_KEY` / `GROQ_API_KEY` / `GEMINI_API_KEY` | Optional server-side AI fallback (BYOK in Settings still works) |
+| `ALLOW_LOCAL_PROVIDERS=true` | Only if you run a local LLM (e.g. Ollama) and want to reach it from the container |
+
+**Accounts are optional.** A self-hosted single-user instance needs no auth — the app is fully open by default. Only set the Clerk keys if you ever plan to expose a *public* multi-user instance.
+
+---
+
 ## Tech Stack
 
 - **Framework** — Next.js 16 (App Router, Turbopack)
@@ -135,10 +160,10 @@ Keys are stored in your browser's local storage and sent per-request — nothing
 - [x] Spaced-repetition review in-app
 - [x] Channel watchlist with auto-summarize
 - [x] Custom AI providers (any endpoint)
-- [ ] Streaks & daily review nudge
-- [ ] Course progress tracking (lectures done, next-up, mastery)
-- [ ] Shareable public study decks
-- [ ] Self-hosted sync / optional accounts
+- [x] Streaks & daily review nudge
+- [x] Course progress tracking (lectures done, next-up, mastery)
+- [x] Shareable study decks
+- [x] Self-hosting (Docker + Postgres, optional accounts)
 
 ## Contributing
 
