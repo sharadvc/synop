@@ -3,27 +3,43 @@ import type { NextRequest } from 'next/server';
 
 /**
  * Current user id:
- *  - When Clerk is configured (deployed): the signed-in user's id.
- *  - Otherwise (localhost / self-hosted open mode): a stable local default.
+ *  - No Clerk (localhost / self-hosted open mode): 'local' (all local data).
+ *  - Clerk configured + signed in: the user's Clerk id.
+ *  - Clerk configured + NOT signed in: null (API calls must be rejected).
  *
- * Reads filter by `userId: { in: [uid, null] }` so legacy rows (created before
- * accounts) stay visible, and writes set `userId` to the current id — this is
- * what makes per-account isolation + cross-device sync work.
+ * Reads scope with `userScope()` (this user + legacy null rows); writes should
+ * call `requireUserId()` and 401 when it returns null.
  */
-export async function currentUserId(req?: Request): Promise<string> {
+export async function currentUserId(req?: Request): Promise<string | null> {
   if (process.env.CLERK_SECRET_KEY) {
     try {
       const userId = req ? getAuth(req as NextRequest).userId : (await auth()).userId;
-      if (userId) return userId;
+      return userId || null;
     } catch {
-      // no auth context (e.g. unauthenticated) — fall through to open mode
+      return null;
     }
   }
   return 'local';
 }
 
-/** Prisma where-clause: this user's rows + legacy null-user rows. */
-export async function userScope(uid?: string) {
-  const resolved = uid || (await currentUserId());
+/**
+ * Prisma where-clause for reads:
+ *  - uid given → that user's rows + legacy null rows.
+ *  - uid null (Clerk on, unauthenticated) → legacy null rows only (no one's data).
+ *  - open mode → 'local' rows + legacy null rows.
+ */
+export async function userScope(uid?: string | null) {
+  const resolved = uid !== undefined ? uid : await currentUserId();
+  if (resolved === null) return { userId: null };
   return { OR: [{ userId: resolved }, { userId: null }] };
+}
+
+/**
+ * For mutating routes: returns the current user id, or null when the request
+ * is not authenticated (only possible when Clerk is configured). Callers
+ * should `if (!uid) return 401`. In open mode always returns 'local'.
+ */
+export async function requireUserId(req?: Request): Promise<string | null> {
+  if (!process.env.CLERK_SECRET_KEY) return 'local';
+  return currentUserId(req);
 }

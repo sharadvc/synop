@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { extractVideoId, getTranscript } from '@/lib/youtube';
 import { db } from '@/lib/db';
 import { callCustomProvider, resolveCustomProviders, type CustomProvider } from '@/lib/ai';
-import { currentUserId, userScope } from '@/lib/user';
+import { currentUserId, userScope, requireUserId } from '@/lib/user';
 export const maxDuration = 120;
 
 /**
@@ -320,6 +320,7 @@ async function callModelWithFallback(transcript: string, keys: CustomKeys, langu
 
 export async function POST(req: Request) {
   try {
+    const __uid = await requireUserId(req); if (!__uid) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     // Auth removed at 04d6622 (master-password auth deleted, cookie never set) — muted for local dev.
 
     const { url, language = 'English', customPrompt, persona = 'general' } = await req.json();

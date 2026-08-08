@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireUserId } from '@/lib/user';
 
 /** POST /api/share/deck  { title, sourceUrl?, deck: [{front, back}] } */
 export async function POST(req: Request) {
   try {
+    const __uid = await requireUserId(req); if (!__uid) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     const { title, sourceUrl, deck } = await req.json();
     if (!title || !Array.isArray(deck) || deck.length === 0) {
       return NextResponse.json({ error: 'title and a non-empty deck are required' }, { status: 400 });

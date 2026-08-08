@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveChannel } from '@/lib/youtubeApi';
-import { currentUserId, userScope } from '@/lib/user';
+import { userScope, requireUserId } from '@/lib/user';
 
 /** GET /api/watchlist — list watched channels. */
 export async function GET() {
@@ -16,6 +16,7 @@ export async function GET() {
  */
 export async function POST(req: Request) {
   try {
+    const uid = await requireUserId(req); if (!uid) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     const body = await req.json();
     let channelId = body.channelId;
     let title = body.title || '';
@@ -31,7 +32,6 @@ export async function POST(req: Request) {
       avatar = resolved.avatar || null;
     }
     if (!channelId) return NextResponse.json({ error: 'channelId is required' }, { status: 400 });
-    const uid = await currentUserId();
 
     const channel = await db.channelWatch.upsert({
       where: { channelId_userId: { channelId, userId: uid } },
@@ -51,9 +51,10 @@ export async function POST(req: Request) {
 /** DELETE /api/watchlist — body { id } removes a watched channel. */
 export async function DELETE(req: Request) {
   try {
+    const uid = await requireUserId(req); if (!uid) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     const { id } = await req.json();
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
-    await db.channelWatch.delete({ where: { id, ...(await userScope()) } });
+    await db.channelWatch.delete({ where: { id, ...(await userScope(uid)) } });
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

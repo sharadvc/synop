@@ -4,7 +4,7 @@ import { getTranscript } from '@/lib/youtube';
 import { resolveKeys } from '@/lib/ai';
 import { enrichTranscript } from '@/lib/phase2';
 import { analyzeEntityGraph } from '@/lib/phase2/entityGraph';
-import { userScope } from '@/lib/user';
+import { userScope, requireUserId } from '@/lib/user';
 
 export const maxDuration = 300;
 export const runtime = 'nodejs';
@@ -21,6 +21,7 @@ export const runtime = 'nodejs';
  */
 export async function POST(req: Request) {
   try {
+    const __uid = await requireUserId(req); if (!__uid) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     const { videoId, language = 'English', force = false, persona = 'general' } = await req.json();
     if (!videoId) {
       return NextResponse.json({ error: 'Video ID is required' }, { status: 400 });

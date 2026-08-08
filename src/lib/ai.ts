@@ -8,6 +8,7 @@
  * `llmJson<T>` guarantees a parsed object (or throws), so every feature
  * consumes a deterministic JSON shape regardless of which provider answered.
  */
+import { safeProviderBaseUrl } from '@/lib/net';
 
 /** A user-defined provider: any OpenAI-compatible /chat/completions endpoint. */
 export interface CustomProvider {
@@ -72,6 +73,8 @@ export async function callCustomProvider(
   maxTokens = 4096,
 ): Promise<string | null> {
   try {
+    // SSRF guard: never fetch user-supplied private/metadata/localhost URLs.
+    if (!(await safeProviderBaseUrl(provider.baseUrl))) return null;
     const res = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {

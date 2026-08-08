@@ -5,12 +5,13 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import Groq from 'groq-sdk';
 import { resolveCustomProviders } from '@/lib/ai';
-import { userScope } from '@/lib/user';
+import { userScope, requireUserId } from '@/lib/user';
 
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
+    const __uid = await requireUserId(req); if (!__uid) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     const { messages, videoId, language = "English", persona = "general" } = await req.json();
     if (!videoId) return NextResponse.json({ error: 'Video ID is required' }, { status: 400 });
     if (!messages || messages.length === 0) return NextResponse.json({ error: 'No messages provided' }, { status: 400 });

@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
+import { safeProviderBaseUrl } from '@/lib/net';
+
+export const runtime = 'nodejs';
 
 /**
  * POST /api/providers/models  { baseUrl, apiKey }
  * Probes an OpenAI-compatible provider for its live model list.
  * Tries GET {baseUrl}/models (OpenAI, DeepSeek, Together, OpenRouter, …),
  * then GET {baseUrl-without-/v1}/api/tags (Ollama's native endpoint).
+ * Refuses SSRF-unsafe base URLs (private/metadata/localhost) unless
+ * ALLOW_LOCAL_PROVIDERS=true.
  */
 export async function POST(req: Request) {
   try {
@@ -12,6 +17,12 @@ export async function POST(req: Request) {
     if (!baseUrl) return NextResponse.json({ error: 'Base URL is required' }, { status: 400 });
 
     const base = String(baseUrl).trim().replace(/\/+$/, '');
+    if (!(await safeProviderBaseUrl(base))) {
+      return NextResponse.json(
+        { error: 'Base URL is not allowed (private or local endpoints are blocked).' },
+        { status: 400 },
+      );
+    }
     const models = await fetchModelList(base, apiKey);
 
     if (models.length === 0) {

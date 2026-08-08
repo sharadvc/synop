@@ -42,6 +42,11 @@ A complete, working, persona-aware open-source app:
 ### 3. Postgres readiness
 - `prisma/schema.postgres.prisma` + `DATABASE_URL` + `db:push:pg`/`db:generate:pg` scripts.
 
+### 4. Security pass before accounts go live (DONE, build verified)
+- **SSRF protection** — new `src/lib/net.ts`: `safeProviderBaseUrl()` rejects custom-provider base URLs that are private ranges (10/8, 172.16/12, 192.168/16, 127/8, 169.254/16, 100.64/10), cloud metadata (169.254.169.254, 100.100.100.200, metadata.google.internal, …), localhost, or that resolve (via `dns.lookup`) to any private IP — also defeats DNS rebinding. Cached so hot LLM loops don't re-resolve. Wired into `callCustomProvider` (`ai.ts`) and the `/api/providers/models` probe. Self-hosters with local models can opt out with `ALLOW_LOCAL_PROVIDERS=true`.
+- **401 on unauthenticated writes** — `currentUserId()` now returns `string | null`; `requireUserId()` returns `'local'` in open mode, or null when Clerk is on but the request is unauthenticated. All 12 mutating API routes (`summarize`, `enrich`, `chat`, `notes`, `research`, `export/*`, `share/deck`, `watchlist`, `watchlist/check`, `summary/[id]`, `providers/models`) now `if (!uid) return 401` instead of falling back to the shared `'local'` bucket — so no cross-user writes when accounts are on. Reads still `userScope()` (this user + legacy null rows). Middleware already gates `/dashboard`, `/playlist`, `/summary` pages.
+- Verified: `tsc --noEmit` clean, `npm run build` clean. Open mode (no Clerk) still works (everything 401s through to `'local'`).
+
 ---
 
 ## TODO (next session)
@@ -72,7 +77,7 @@ A complete, working, persona-aware open-source app:
 >
 > **Rules:** (1) Do NOT add `Co-Authored-By` to commit messages — the user removed Claude from contributors. (2) Commit identity must stay `Sharad <264168532@users.noreply.github.com>`. (3) Keep it open-source friendly: localhost runs with zero config, auth is optional/key-gated, BYOK is the model. (4) Dev server on port 3001 (`npm run dev -p 3001`).
 >
-> **State:** App is feature-complete locally (SQLite). **userId isolation is DONE** — `Summary`/`Folder`/`ChannelWatch` have `userId`, all routes are scoped via `src/lib/user.ts` (`currentUserId()` + `userScope()`), open mode (no Clerk) verified working. Optional Clerk auth + Postgres schema are wired but untested (need real keys/DB).
+> **State:** App is feature-complete locally (SQLite). **userId isolation is DONE** — `Summary`/`Folder`/`ChannelWatch` have `userId`, all routes are scoped via `src/lib/user.ts` (`currentUserId()` + `userScope()`), open mode (no Clerk) verified working. Optional Clerk auth + Postgres schema are wired but untested (need real keys/DB). **Security pass is DONE too** — SSRF protection for custom provider URLs (`src/lib/net.ts`) + 401 on unauthenticated writes via `requireUserId()`.
 >
 > **Next session's goal — DEPLOY + make accounts live:**
 > 1. Read PLAN.md (repo root) + `src/lib/user.ts` + the schema.

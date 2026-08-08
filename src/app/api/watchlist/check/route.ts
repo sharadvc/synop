@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getRecentUploads } from '@/lib/youtubeApi';
-import { userScope } from '@/lib/user';
+import { userScope, requireUserId } from '@/lib/user';
 
 /**
  * POST /api/watchlist/check   { id?, max? }
@@ -11,6 +11,7 @@ import { userScope } from '@/lib/user';
  */
 export async function POST(req: Request) {
   try {
+    const __uid = await requireUserId(req); if (!__uid) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     const { id, max = 5 } = await req.json();
     const where = id ? { id, ...(await userScope()) } : await userScope();
     const channels = await db.channelWatch.findMany({ where, orderBy: { createdAt: 'desc' } });

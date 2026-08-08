@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { userScope } from '@/lib/user';
+import { userScope, requireUserId } from '@/lib/user';
 import { wikiLinkEntities } from '@/lib/pkm';
 
 export async function POST(req: Request) {
   try {
+    const __uid = await requireUserId(req); if (!__uid) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     const { videoId } = await req.json();
     if (!videoId) return NextResponse.json({ error: 'Video ID is required' }, { status: 400 });
 
