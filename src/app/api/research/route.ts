@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveKeys, llmText } from '@/lib/ai';
+import { userScope } from '@/lib/user';
 
 export const maxDuration = 120;
 
@@ -102,8 +103,8 @@ export async function POST(req: Request) {
     const { videoId, language = 'English', persona = 'general' } = await req.json();
     if (!videoId) return NextResponse.json({ error: 'Video ID is required' }, { status: 400 });
 
-    const summary = await db.summary.findFirst({ where: { videoId, language, persona } })
-      ?? await db.summary.findFirst({ where: { videoId, language } });
+    const summary = await db.summary.findFirst({ where: { videoId, language, persona, ...(await userScope()) } })
+      ?? await db.summary.findFirst({ where: { videoId, language, ...(await userScope()) } });
     if (!summary) return NextResponse.json({ error: 'Summary not found. Summarize the video first.' }, { status: 404 });
 
     const parse = (raw: string | null): any => {

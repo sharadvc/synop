@@ -4,6 +4,7 @@ import { getTranscript } from '@/lib/youtube';
 import { resolveKeys } from '@/lib/ai';
 import { enrichTranscript } from '@/lib/phase2';
 import { analyzeEntityGraph } from '@/lib/phase2/entityGraph';
+import { userScope } from '@/lib/user';
 
 export const maxDuration = 300;
 export const runtime = 'nodejs';
@@ -25,8 +26,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Video ID is required' }, { status: 400 });
     }
 
-    const summary = await db.summary.findFirst({ where: { videoId, language, persona } })
-      ?? await db.summary.findFirst({ where: { videoId, language } });
+    const summary = await db.summary.findFirst({ where: { videoId, language, persona, ...(await userScope()) } })
+      ?? await db.summary.findFirst({ where: { videoId, language, ...(await userScope()) } });
     if (!summary) {
       return NextResponse.json({ error: 'Summary not found. Summarize the video first.' }, { status: 404 });
     }

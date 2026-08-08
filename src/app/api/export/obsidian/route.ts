@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { db } from '@/lib/db';
+import { userScope } from '@/lib/user';
 import { buildKnowledgeMarkdown, slugify } from '@/lib/pkm';
 
 export const runtime = 'nodejs';
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
     const { videoId, language = 'English' } = await req.json();
     if (!videoId) return NextResponse.json({ error: 'Video ID is required' }, { status: 400 });
 
-    const summary = await db.summary.findFirst({ where: { videoId, language } });
+    const summary = await db.summary.findFirst({ where: { videoId, language, ...(await userScope()) } });
     if (!summary) return NextResponse.json({ error: 'Summary not found' }, { status: 404 });
 
     const parse = (raw: string | null) => {

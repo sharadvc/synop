@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { userScope } from '@/lib/user';
 
 /**
  * GET /api/library?q=...&persona=...
@@ -15,7 +16,7 @@ export async function GET(req: Request) {
   const persona = searchParams.get('persona') || 'general';
 
   const summaries = await db.summary.findMany({
-    where: { persona: { in: [persona, 'general'] } },
+    where: { ...(await userScope()), persona: { in: [persona, 'general'] } },
     select: {
       id: true, videoId: true, title: true, channel: true,
       executiveSummary: true, quotes: true, topicClusters: true,

@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveChannel } from '@/lib/youtubeApi';
+import { currentUserId, userScope } from '@/lib/user';
 
 /** GET /api/watchlist — list watched channels. */
 export async function GET() {
-  const channels = await db.channelWatch.findMany({ orderBy: { createdAt: 'desc' } });
+  const channels = await db.channelWatch.findMany({ where: await userScope(), orderBy: { createdAt: 'desc' } });
   return NextResponse.json({ channels });
 }
 
@@ -30,10 +31,11 @@ export async function POST(req: Request) {
       avatar = resolved.avatar || null;
     }
     if (!channelId) return NextResponse.json({ error: 'channelId is required' }, { status: 400 });
+    const uid = await currentUserId();
 
     const channel = await db.channelWatch.upsert({
-      where: { channelId },
-      create: { channelId, title, handle, avatar, autoSummarize: body.autoSummarize ?? true },
+      where: { channelId_userId: { channelId, userId: uid } },
+      create: { channelId, userId: uid, title, handle, avatar, autoSummarize: body.autoSummarize ?? true },
       update: {
         title, handle, avatar,
         ...(typeof body.autoSummarize === 'boolean' ? { autoSummarize: body.autoSummarize } : {}),
@@ -51,7 +53,7 @@ export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
-    await db.channelWatch.delete({ where: { id } });
+    await db.channelWatch.delete({ where: { id, ...(await userScope()) } });
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

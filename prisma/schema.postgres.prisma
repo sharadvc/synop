@@ -35,14 +35,16 @@ model Summary {
   freshness        String?
   entityGraph      String?
   persona          String   @default("general")
+  userId           String?
   createdAt        DateTime @default(now())
 
-  @@unique([videoId, language, persona])
+  @@unique([videoId, language, persona, userId])
 }
 
 model Folder {
   id        String    @id @default(cuid())
   name      String
+  userId    String?
   color     String?   @default("gray")
   summaries Summary[]
   createdAt DateTime  @default(now())
@@ -59,7 +61,8 @@ model Tag {
 
 model ChannelWatch {
   id            String    @id @default(cuid())
-  channelId     String    @unique
+  userId        String?
+  channelId     String
   title         String
   handle        String?
   avatar        String?
@@ -67,6 +70,8 @@ model ChannelWatch {
   lastCheckedAt DateTime?
   lastVideoId   String?
   createdAt     DateTime  @default(now())
+
+  @@unique([channelId, userId])
 }
 
 model SharedDeck {

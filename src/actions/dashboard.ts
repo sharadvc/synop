@@ -1,13 +1,14 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { userScope } from "@/lib/user";
 
 export async function getDashboardData(language?: string, persona: string = 'general') {
   const [summaries, folders] = await Promise.all([
     db.summary.findMany({
       where: {
         AND: [
-          // Show this persona's tailored summaries + legacy 'general' ones.
+          await userScope(),
           { persona: { in: [persona, 'general'] } },
           ...(language ? [{ language }] : []),
         ],
@@ -16,6 +17,7 @@ export async function getDashboardData(language?: string, persona: string = 'gen
       take: 50
     }),
     db.folder.findMany({
+      where: await userScope(),
       orderBy: { createdAt: 'asc' },
       include: {
         _count: {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { userScope } from '@/lib/user';
 import { wikiLinkEntities } from '@/lib/pkm';
 
 export async function POST(req: Request) {
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const summary = await db.summary.findFirst({ where: { videoId } });
+    const summary = await db.summary.findFirst({ where: { videoId, ...(await userScope()) } });
     if (!summary) return NextResponse.json({ error: 'Summary not found' }, { status: 404 });
 
     const parse = (raw: string | null) => {

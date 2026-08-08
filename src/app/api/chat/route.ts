@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import Groq from 'groq-sdk';
 import { resolveCustomProviders } from '@/lib/ai';
+import { userScope } from '@/lib/user';
 
 export const maxDuration = 60;
 
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
     if (videoId === 'global') {
       // Global Chat Mode: Fetch recent summaries
       const summaries = await db.summary.findMany({
+        where: await userScope(),
         orderBy: { createdAt: 'desc' },
         take: 10
       });
@@ -48,8 +50,8 @@ Frameworks: ${s.frameworks ?? ''}
 `;
     } else {
       // Specific Video Mode
-      const summary = await db.summary.findFirst({ where: { videoId, language, persona } })
-        ?? await db.summary.findFirst({ where: { videoId, language } });
+      const summary = await db.summary.findFirst({ where: { videoId, language, persona, ...(await userScope()) } })
+        ?? await db.summary.findFirst({ where: { videoId, language, ...(await userScope()) } });
       if (!summary) return NextResponse.json({ error: 'Summary not found. Please summarize the video first.' }, { status: 404 });
 
       systemPrompt = `You are a highly intelligent AI assistant answering questions about a YouTube video.

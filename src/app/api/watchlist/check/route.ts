@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getRecentUploads } from '@/lib/youtubeApi';
+import { userScope } from '@/lib/user';
 
 /**
  * POST /api/watchlist/check   { id?, max? }
@@ -11,7 +12,7 @@ import { getRecentUploads } from '@/lib/youtubeApi';
 export async function POST(req: Request) {
   try {
     const { id, max = 5 } = await req.json();
-    const where = id ? { id } : {};
+    const where = id ? { id, ...(await userScope()) } : await userScope();
     const channels = await db.channelWatch.findMany({ where, orderBy: { createdAt: 'desc' } });
 
     const results = [];
@@ -25,13 +26,13 @@ export async function POST(req: Request) {
 
       const videoIds = uploads.map(u => u.id);
       const existing = videoIds.length
-        ? await db.summary.findMany({ where: { videoId: { in: videoIds } }, select: { videoId: true } })
+        ? await db.summary.findMany({ where: { videoId: { in: videoIds }, ...(await userScope()) }, select: { videoId: true } })
         : [];
       const existingIds = new Set(existing.map(s => s.videoId));
       const newVideos = uploads.filter(u => !existingIds.has(u.id));
 
       await db.channelWatch.update({
-        where: { id: ch.id },
+        where: { id: ch.id, ...(await userScope()) },
         data: { lastCheckedAt: new Date(), lastVideoId: uploads[0]?.id || null },
       });
 

@@ -28,62 +28,60 @@ A complete, working, persona-aware open-source app:
 
 ## Just done this session (ready but not fully testable)
 
-### 1. Optional Clerk auth (key-gated)
-- `@clerk/nextjs` re-added. `ClerkProvider` in `src/app/layout.tsx` wraps the app **only when `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is set**.
-- `src/middleware.ts` protects `/dashboard`, `/playlist`, `/summary` **only when `CLERK_SECRET_KEY` is set**; otherwise passes through.
-- `src/components/ClerkAuth.tsx` renders sign-in / user menu in the Navbar only when Clerk is active.
-- **Localhost / self-hosted runs stay open (no auth).** Verified: builds + all pages 200 with no keys.
+### 1. Multi-user userId isolation (DONE, auth-off tested)
+- Added `userId String?` to `Summary`, `Folder`, `ChannelWatch` (both schemas) + migrated.
+- `Summary` unique constraint now `(videoId, language, persona, userId)`; `ChannelWatch` unique now `(channelId, userId)` — so different users can each watch/summarize the same videos.
+- `src/lib/user.ts`: `currentUserId()` (Clerk `getAuth`/`auth`, falls back to `'local'` when auth is off) + `userScope()` (Prisma `{ OR: [{ userId: uid }, { userId: null }] }` so legacy rows stay visible).
+- Scoped **every** read/write in `src/actions/*` + `/api/*` (summarize, enrich, library, watchlist, notes, research, chat, exports, delete) by userId.
+- **Verified in open mode** (no Clerk keys): build passes, all pages 200, library still lists all 9 videos, watchlist add/list/delete works.
+- **Not yet testable:** the Clerk-authenticated path (needs real Clerk keys + a signed-in user).
 
-### 2. Postgres readiness
-- `prisma/schema.postgres.prisma` — identical models, Postgres datasource (`env("DATABASE_URL")`).
-- npm scripts: `npm run db:push:pg`, `npm run db:generate:pg`.
-- `.env.example` documents `DATABASE_URL` + Clerk keys.
-- **Not yet:** the models have **no `userId`**, so data isn't isolated per account yet (see next step).
+### 2. Optional Clerk auth (key-gated)
+- `ClerkProvider` in layout + auth middleware (protects dashboard/playlist/summary) + `ClerkAuth` navbar — active only when keys set. Localhost stays open.
+
+### 3. Postgres readiness
+- `prisma/schema.postgres.prisma` + `DATABASE_URL` + `db:push:pg`/`db:generate:pg` scripts.
 
 ---
 
 ## TODO (next session)
 
-### A. Deploy & make accounts real (the big one)
-1. **Host it** — Vercel (or Railway/Fly for the server). Requires the repo to build on the host.
-2. **Create a Postgres DB** — Supabase (free) or Neon. Copy the connection string into `DATABASE_URL` on the host.
-3. **Push the Postgres schema**: `npm run db:push:pg` on the host (or `prisma migrate`).
-4. **Create a Clerk app** — get `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY`, set on the host. Auth then turns ON automatically (the code is already wired).
+### A. Deploy & turn accounts on (the big one)
+1. **Host it** — Vercel (or Railway/Fly).
+2. **Create a Postgres DB** — Supabase/Neon → `DATABASE_URL` on the host.
+3. **Push schema**: `npm run db:push:pg`.
+4. **Clerk app** → publishable + secret keys on the host. Auth turns ON automatically (code is wired).
+5. **Verify multi-user**: sign in as 2 users → each sees only their own library; same video summarized by both stays separate.
 
-### B. Multi-user data isolation & cross-device sync (required once auth is on)
-Currently all users share the same SQLite/Postgres rows — fine for a single self-hosted user, but with Clerk accounts we must scope data per user:
-1. Add `userId String?` to `Summary`, `Folder`, `ChannelWatch` (and optionally `SharedDeck`).
-2. Filter every query in `/api/*` + `src/actions/*` by the Clerk `userId` (`getAuth()` from `@clerk/nextjs/server`).
-3. Add a `userId` column + migration. This is what makes "sync across devices" real: sign in on any device → see the same library.
-4. Local runs (no auth) fall back to a default user id so nothing breaks open.
+### B. Move localStorage features to Postgres (cross-device sync)
+- Course progress (`synop_course_*`), streaks (`synop_streak`), spaced-repetition schedules (`synop_review_*`) are browser-only. To sync across devices, persist them to the DB keyed by `userId` (new model(s) + the components read/write via API instead of localStorage).
 
 ### C. Open-source polish / self-hosting docs
-- Add a **"Self-hosting"** section to README: SQLite (zero-config) vs Postgres (multi-device), optional auth, where to get keys.
-- Consider `Dockerfile` + `docker-compose.yml` (Postgres + app) so people can self-host in one command — big for an open-source audience.
+- README "Self-hosting" section (SQLite zero-config vs Postgres multi-device, optional auth, keys).
+- `Dockerfile` + `docker-compose.yml` (Postgres + app) for one-command self-hosting.
 
-### D. Optional features (only after deploy works)
-- Public share links already exist (`/share/[id]`) — they become truly shareable once deployed.
-- Course progress, streaks, etc. are localStorage — to sync across devices, move them to the DB (Postgres) keyed by userId.
-- Real "auto-summarize" (scheduled job) once there's an always-on server.
+### D. Optional
+- Public share links (`/share/[id]`) become truly shareable once deployed.
+- Scheduled "auto-summarize" once there's an always-on server.
 
 ---
 
 ## Continuation prompt (paste this tomorrow)
 
-> **Project:** `/Users/sharad007/synop-first-version` — Synop, an open-source MIT BYOK YouTube-to-knowledge app. Push to BOTH remotes after committing: `public` (`sharadvc/synop`, force-push `master:main` if needed) and `origin` (`sharadvc/synop-private`).
+> **Project:** `/Users/sharad007/synop-first-version` — Synop, an open-source MIT BYOK YouTube-to-knowledge app. Push to BOTH remotes after committing: `public` (`sharadvc/synop`, `master:main`) and `origin` (`sharadvc/synop-private`).
 >
-> **Rules:** (1) Do NOT add `Co-Authored-By` to commit messages — the user removed Claude from contributors. (2) Commit identity must stay `Sharad <264168532@users.noreply.github.com>`. (3) Keep it open-source friendly: localhost runs with zero config, auth is optional/key-gated, BYOK is the model. (4) The dev server runs on port 3001 (`npm run dev -p 3001`).
+> **Rules:** (1) Do NOT add `Co-Authored-By` to commit messages — the user removed Claude from contributors. (2) Commit identity must stay `Sharad <264168532@users.noreply.github.com>`. (3) Keep it open-source friendly: localhost runs with zero config, auth is optional/key-gated, BYOK is the model. (4) Dev server on port 3001 (`npm run dev -p 3001`).
 >
-> **State:** App is feature-complete locally (SQLite). This session I added: optional Clerk auth (key-gated `ClerkProvider` + middleware + `ClerkAuth` navbar) and a Postgres-ready schema (`prisma/schema.postgres.prisma` + `DATABASE_URL` in `.env.example` + `db:push:pg` script). Auth is OFF without keys; Postgres is not yet used.
+> **State:** App is feature-complete locally (SQLite). **userId isolation is DONE** — `Summary`/`Folder`/`ChannelWatch` have `userId`, all routes are scoped via `src/lib/user.ts` (`currentUserId()` + `userScope()`), open mode (no Clerk) verified working. Optional Clerk auth + Postgres schema are wired but untested (need real keys/DB).
 >
-> **Next session's goal — MAKE ACCOUNTS + CROSS-DEVICE SYNC REAL:**
-> 1. Check git status + the PLAN.md at the repo root.
-> 2. Implement multi-user isolation: add `userId String?` to `Summary`, `Folder`, `ChannelWatch` (Prisma), and filter every `/api/*` route + `src/actions/*` by Clerk's `getAuth().userId` (fall back to a default id when auth is off).
-> 3. Move the localStorage-only features (course progress, streaks) to Postgres keyed by userId so they sync across devices.
-> 4. Guide the user through deploying: create a Supabase/Neon Postgres DB, a Clerk app, set env vars (`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`), push the Postgres schema, and deploy to Vercel.
-> 5. Add a README "Self-hosting" section + optionally a Dockerfile.
+> **Next session's goal — DEPLOY + make accounts live:**
+> 1. Read PLAN.md (repo root) + `src/lib/user.ts` + the schema.
+> 2. Walk the user through: creating a Supabase/Neon Postgres DB, a Clerk app, setting `DATABASE_URL` + `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY`, pushing the Postgres schema, deploying to Vercel.
+> 3. After deploy, TEST multi-user isolation: two accounts each see only their own data; the same video summarized by both stays separate.
+> 4. Then move the localStorage features (course progress, streaks, review schedules) into Postgres keyed by userId so they sync across devices.
+> 5. Add README "Self-hosting" section + optionally a Dockerfile.
 >
-> Start by reading PLAN.md and the current schema, then implement item 2 (the userId isolation) first.
+> Start by confirming git is clean and the app builds, then guide the deploy (item 2).
 
 ---
 

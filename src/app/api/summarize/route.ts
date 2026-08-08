@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { extractVideoId, getTranscript } from '@/lib/youtube';
 import { db } from '@/lib/db';
 import { callCustomProvider, resolveCustomProviders, type CustomProvider } from '@/lib/ai';
+import { currentUserId, userScope } from '@/lib/user';
 export const maxDuration = 120;
 
 /**
@@ -329,7 +330,7 @@ export async function POST(req: Request) {
 
     // Check if a summary already exists for this video + language + persona.
     const existingSummary = await db.summary.findFirst({
-       where: { videoId, language, persona }
+       where: { videoId, language, persona, ...(await userScope()) }
     });
 
     if (existingSummary) {
@@ -354,7 +355,7 @@ export async function POST(req: Request) {
     // Reuse a stored transcript from any persona's row (transcript is
     // persona-independent) instead of re-fetching from YouTube each time.
     const storedTranscript = await db.summary.findFirst({
-      where: { videoId, transcript: { not: null } },
+      where: { videoId, transcript: { not: null }, ...(await userScope()) },
       select: { transcript: true },
     });
 
@@ -382,6 +383,7 @@ export async function POST(req: Request) {
           data: {
             videoId,
             persona,
+            userId: await currentUserId(),
             title: meta?.title || "Unknown Title",
             channel: meta?.author_name || "Unknown Channel",
             duration: "TBD",
