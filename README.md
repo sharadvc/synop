@@ -10,7 +10,7 @@
   </p>
 
   <p align="center">
-    <a href="https://github.com/sharadvc/synop/releases"><img src="https://img.shields.io/badge/version-2.0.0-blue" alt="Version 2.0.0" /></a>
+    <a href="https://github.com/sharadvc/synop/releases"><img src="https://img.shields.io/badge/version-2.1.0-blue" alt="Version 2.1.0" /></a>
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
     <img src="https://img.shields.io/badge/Next.js-16-black" alt="Next.js 16" />
     <img src="https://img.shields.io/badge/stack-OpenAI--compatible-purple" alt="Any OpenAI-compatible provider" />
@@ -117,6 +117,14 @@ Open **http://localhost:3000** — the first time you enter the dashboard you'll
 | **`YOUTUBE_API_KEY`** | Free YouTube Data API v3 key — required for reliable **playlist** and **channel watchlist** fetching. |
 
 Keys are stored in your browser's local storage and sent per-request — nothing else leaves your machine.
+
+---
+
+## Data & Privacy
+
+- **Local-first.** Everything lives in a local SQLite database (`prisma/dev.db`) — summaries, notes, library, watchlist, folders. There is no Synop server; your data never leaves your machine.
+- **Your keys stay yours.** AI keys are stored in your browser (localStorage) and sent straight to the provider you chose, per request.
+- **Safe by default.** Custom provider URLs are checked against private / metadata / localhost addresses (SSRF guard), so Synop can't be pointed at your internal network. Self-hosters running a local LLM (e.g. Ollama) opt in with `ALLOW_LOCAL_PROVIDERS=true`.
 
 ---
 
