@@ -47,25 +47,23 @@ A complete, working, persona-aware open-source app:
 - **401 on unauthenticated writes** — `currentUserId()` now returns `string | null`; `requireUserId()` returns `'local'` in open mode, or null when Clerk is on but the request is unauthenticated. All 12 mutating API routes (`summarize`, `enrich`, `chat`, `notes`, `research`, `export/*`, `share/deck`, `watchlist`, `watchlist/check`, `summary/[id]`, `providers/models`) now `if (!uid) return 401` instead of falling back to the shared `'local'` bucket — so no cross-user writes when accounts are on. Reads still `userScope()` (this user + legacy null rows). Middleware already gates `/dashboard`, `/playlist`, `/summary` pages.
 - Verified: `tsc --noEmit` clean, `npm run build` clean. Open mode (no Clerk) still works (everything 401s through to `'local'`).
 
-### 5. Self-hosting polish (DONE, Docker build untested)
-- README "Self-Host with Docker" section + `Dockerfile` + `docker-compose.yml` + `.dockerignore`.
-- `docker compose up --build` → app on :3001 with a bundled Postgres; tables auto-created at boot (`prisma db push --schema prisma/schema.postgres.prisma`).
-- Chose the robust single-stage `next start` image over `output: standalone` (avoids Prisma/external-package tracing gotchas); kept devDeps so the `prisma` CLI is present at boot.
-- **Docker build is untested** — no Docker on this machine. First `docker compose up --build` on a Docker machine is the verification step.
+### 5. Self-hosting docs (DONE — no Docker)
+- Docker was tried then **removed** (2026-08-08): the owner wants self-hosting to require **no Docker**. `.dockerignore`, `Dockerfile`, `docker-compose.yml` deleted; README section rewritten.
+- README "Self-Hosting" section: direct Node run (clone → `npm install` → `npx prisma db push` → `npm run build` → `npm run start`), SQLite default (one file, `prisma/dev.db`), optional Postgres via `DATABASE_URL` + `npm run db:push:pg`, keys table, optional-auth note, process-manager tip.
+- Keep the project dependency-light — no containerization, no added deps.
 
 ---
 
 ## TODO (next session)
 
-> **Direction (2026-08-08):** Synop is a **self-hosted open-source tool**, not a hosted multi-user app. The deploy-with-accounts path is dropped. Auth + Postgres stay in the code but dormant/key-gated. Goal: a polished one-command self-host experience.
+> **Direction (2026-08-08):** Synop is a **self-hosted open-source tool**, not a hosted multi-user app. The deploy-with-accounts path is dropped. Auth + Postgres stay in the code but dormant/key-gated. Goal: a simple, **no-Docker** self-host experience.
 
 ### A. ~~Deploy & turn accounts on~~ — dropped (self-hosting pivot)
 Keep Clerk + Postgres dormant. Revisit only if a public multi-user instance is ever wanted.
 
-### B. (done) Self-hosting polish
-- README "Self-Host with Docker" section + `Dockerfile` + `docker-compose.yml` + `.dockerignore`.
-- `docker compose up --build` → app on :3001 with bundled Postgres; tables auto-created at boot (`prisma db push`).
-- **Untested locally** (no Docker on this machine) — first build on a Docker machine is the verification step.
+### B. (done) Self-hosting docs (no Docker)
+- README "Self-Hosting" section: direct Node run, SQLite default, optional Postgres, keys, optional auth.
+- Decision: **no Docker** — self-hosting must not require it.
 
 ### C. Optional — cross-device sync (only with Postgres self-host)
 - Course progress (`synop_course_*`), streaks (`synop_streak`), spaced-repetition schedules (`synop_review_*`) are browser-only. Persist them to the DB keyed by `userId` (new model(s) + the components read/write via API instead of localStorage) so data follows you between devices.
@@ -86,7 +84,7 @@ Keep Clerk + Postgres dormant. Revisit only if a public multi-user instance is e
 >
 > **Next session's goal — polish the self-hosted experience:**
 > 1. Read PLAN.md for the pivot: Synop is a **self-hosted open-source tool** — no hosted accounts. Auth/Postgres code stays dormant & key-gated.
-> 2. Verify Docker on a machine with Docker: `docker compose up --build`, open http://localhost:3001, summarize a video, confirm the library works against the bundled Postgres. Fix any Dockerfile/compose issues found.
+> 2. Verify a fresh-clone production run: clone → `npm install` → `npx prisma db push` → `npm run build` → `npm run start`, open http://localhost:3000, summarize a video, confirm the library works.
 > 3. Confirm `tsc` + `npm run build` pass and git is clean before any commit.
 > 4. Optional: move browser-only features (course progress, streaks, review schedules) into Postgres keyed by `userId` for cross-device sync.
 >

@@ -120,18 +120,29 @@ Keys are stored in your browser's local storage and sent per-request — nothing
 
 ---
 
-## Self-Host with Docker
+## Self-Hosting
 
-One command runs the whole app with its own Postgres database — no Node install, no manual setup. Great for a home server, a Raspberry Pi, or any always-on machine.
+Synop runs anywhere Node.js does — a home server, a Raspberry Pi, a VPS. No Docker required.
 
 ```bash
 git clone https://github.com/sharadvc/synop.git
 cd synop
-# optional: put your keys in a .env file (see .env.example)
-docker compose up --build
+npm install
+npx prisma db push        # creates the SQLite database (prisma/dev.db)
+npm run build
+npm run start             # production server → http://localhost:3000
 ```
 
-Open **http://localhost:3001**. The database is created automatically on first boot (`prisma db push`), so there's no migration step.
+Set `PORT` to change the port (e.g. `PORT=8080 npm run start`).
+
+**Keep it running.** `npm run start` runs in the foreground. For an always-on instance, run it under a process manager, e.g. with pm2:
+
+```bash
+npx pm2 start "npm run start" --name synop
+npx pm2 save
+```
+
+**Postgres (optional).** Local runs use SQLite — zero-config, one file you can back up (`prisma/dev.db`). To sync across devices or run multi-user, point it at Postgres instead: set `DATABASE_URL` in `.env` and run `npm run db:push:pg` once before starting.
 
 **Keys.** Most people just paste keys in the app (Settings → BYOK). The only key the *server* needs up front is `YOUTUBE_API_KEY`, for fetching playlists and channel watchlists:
 
@@ -139,7 +150,8 @@ Open **http://localhost:3001**. The database is created automatically on first b
 |---|---|
 | `YOUTUBE_API_KEY` | Playlist + channel watchlist fetching (free from Google Cloud Console) |
 | `OPENROUTER_API_KEY` / `GROQ_API_KEY` / `GEMINI_API_KEY` | Optional server-side AI fallback (BYOK in Settings still works) |
-| `ALLOW_LOCAL_PROVIDERS=true` | Only if you run a local LLM (e.g. Ollama) and want to reach it from the container |
+| `ALLOW_LOCAL_PROVIDERS=true` | Only if you run a local LLM (e.g. Ollama) and want to reach it |
+| `PORT` | Web port (default 3000) |
 
 **Accounts are optional.** A self-hosted single-user instance needs no auth — the app is fully open by default. Only set the Clerk keys if you ever plan to expose a *public* multi-user instance.
 
@@ -163,7 +175,7 @@ Open **http://localhost:3001**. The database is created automatically on first b
 - [x] Streaks & daily review nudge
 - [x] Course progress tracking (lectures done, next-up, mastery)
 - [x] Shareable study decks
-- [x] Self-hosting (Docker + Postgres, optional accounts)
+- [x] Self-hosting (direct Node run — no Docker, SQLite or Postgres, optional accounts)
 
 ## Contributing
 
