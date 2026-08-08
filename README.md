@@ -173,18 +173,6 @@ npx pm2 save
 - **AI** — any OpenAI-compatible endpoint via a provider-fallback chain, with deterministic no-LLM fallbacks so every feature always returns a result
 - **Persona engine** — prompt tailoring + per-persona summary storage + persona-specific tab layouts
 
-## Roadmap
-
-- [x] Persona-tailored content (student / researcher / creator)
-- [x] Cross-video Library + "ask your whole library"
-- [x] Spaced-repetition review in-app
-- [x] Channel watchlist with auto-summarize
-- [x] Custom AI providers (any endpoint)
-- [x] Streaks & daily review nudge
-- [x] Course progress tracking (lectures done, next-up, mastery)
-- [x] Shareable study decks
-- [x] Self-hosting (direct Node run — no Docker, SQLite or Postgres, optional accounts)
-
 ## Contributing
 
 Contributions are welcome — bugs, docs, features, translations. See [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md).
