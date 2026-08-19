@@ -221,7 +221,7 @@ export async function llmJson<T>(opts: LlmOptions): Promise<T> {
   const groqKey = keys.groq;
   if (groqKey) {
     // Try the big model first, then the small (far more lenient) one.
-    const groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+    const groqModels = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
     for (const model of groqModels) {
       try {
         const truncated = user.length > maxUserChars
@@ -264,7 +264,7 @@ export async function llmJson<T>(opts: LlmOptions): Promise<T> {
   if (geminiKey) {
     try {
       const res = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' +
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' +
           encodeURIComponent(geminiKey),
         {
           method: 'POST',
@@ -338,7 +338,7 @@ export async function llmText(opts: {
 
   // Groq
   if (keys.groq) {
-    for (const model of ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']) {
+    for (const model of ['openai/gpt-oss-120b', 'openai/gpt-oss-20b']) {
       try {
         const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
@@ -357,7 +357,7 @@ export async function llmText(opts: {
   if (keys.gemini) {
     try {
       const res = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(keys.gemini),
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(keys.gemini),
         { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts: [{ text: `System Prompt:\n${system}\n\nUser Request:\n${user}` }] }],
             generationConfig: { temperature, maxOutputTokens: maxTokens } }) },

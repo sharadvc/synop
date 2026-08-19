@@ -114,7 +114,7 @@ Verdict: ${summary.verdict}
       try {
         const groq = new Groq({ apiKey: groqKey });
         const completion = await groq.chat.completions.create({
-          model: 'llama-3.3-70b-versatile',
+          model: 'openai/gpt-oss-120b',
           messages: [{ role: 'system', content: systemPrompt }, ...chatMessages],
           temperature: 0.7,
           max_tokens: 2048,
@@ -130,7 +130,7 @@ Verdict: ${summary.verdict}
       try {
         const google = createGoogleGenerativeAI({ apiKey: geminiKey });
         const result = await generateText({
-          model: google('gemini-2.0-flash'),
+          model: google('gemini-2.5-flash'),
           system: systemPrompt,
           messages: chatMessages,
           temperature: 0.7,

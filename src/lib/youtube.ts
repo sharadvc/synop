@@ -31,7 +31,7 @@ export async function optimizeTranscript(rawText: string, videoId: string): Prom
     // Process chunks concurrently using Llama 3 8B (ultra-fast, cheap)
     const compressedChunks = await Promise.all(chunks.map(async (chunk, index) => {
       const response = await groq.chat.completions.create({
-        model: 'llama-3.1-8b-instant',
+        model: 'openai/gpt-oss-20b',
         messages: [
           { 
             role: 'system', 

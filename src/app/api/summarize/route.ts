@@ -231,8 +231,8 @@ async function callModelWithFallback(transcript: string, keys: CustomKeys, langu
   const groqKey = keys.groq || process.env.GROQ_API_KEY;
   if (groqKey) {
     const groqModels = [
-      { id: "llama-3.3-70b-versatile", chars: 14000 }, // ~3.5k tokens + 1k prompt + 1.5k output = 6k TPM (Free Tier limit)
-      { id: "llama-3.1-8b-instant", chars: 30000 },    // ~7.5k tokens + 1k prompt + 1.5k output = 10k (30k TPM limit)
+      { id: "openai/gpt-oss-120b", chars: 14000 }, // big model — generous context, keep prompt lean
+      { id: "openai/gpt-oss-20b", chars: 30000 },  // fast small model — higher rate limits
     ];
 
     for (const groqModel of groqModels) {
@@ -264,7 +264,7 @@ async function callModelWithFallback(transcript: string, keys: CustomKeys, langu
         if (res.ok) {
           const json = await res.json();
           const content = json.choices?.[0]?.message?.content;
-          if (content) return JSON.parse(content);
+          if (content) return extractJson(content);
         } else {
           const err = await res.text();
           console.warn(`[AI Pipeline] Groq ${groqModel.id} failed:`, err.substring(0, 150));
@@ -284,7 +284,7 @@ async function callModelWithFallback(transcript: string, keys: CustomKeys, langu
   if (geminiKey) {
     try {
       console.log("[AI Pipeline] Attempting Gemini 2.0 Flash...");
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -335,7 +335,15 @@ export async function POST(req: Request) {
     });
 
     if (existingSummary) {
-       return NextResponse.json({
+      const parseList = (raw: string | null): any[] => {
+        if (!raw) return [];
+        try { const v = JSON.parse(raw); return Array.isArray(v) ? v : []; } catch { return []; }
+      };
+      const parseObj = (raw: string | null): any => {
+        if (!raw) return undefined;
+        try { return JSON.parse(raw); } catch { return undefined; }
+      };
+      return NextResponse.json({
          videoId,
          meta: { title: existingSummary.title, author_name: existingSummary.channel, thumbnail_url: "" },
          transcript: existingSummary.transcript ? existingSummary.transcript.substring(0, 3000) : null,
@@ -343,11 +351,11 @@ export async function POST(req: Request) {
          ...phase2FromSummary(existingSummary),
          summary: {
             executiveSummary: existingSummary.executiveSummary,
-            quotes: JSON.parse(existingSummary.quotes),
-            resources: JSON.parse(existingSummary.resources),
-            biasAnalysis: existingSummary.biasAnalysis ? JSON.parse(existingSummary.biasAnalysis) : undefined,
-            frameworks: existingSummary.frameworks ? JSON.parse(existingSummary.frameworks) : undefined,
-            entities: existingSummary.entities ? JSON.parse(existingSummary.entities) : undefined,
+            quotes: parseList(existingSummary.quotes),
+            resources: parseList(existingSummary.resources),
+            biasAnalysis: parseList(existingSummary.biasAnalysis),
+            frameworks: parseObj(existingSummary.frameworks),
+            entities: parseObj(existingSummary.entities),
             verdict: existingSummary.verdict,
          }
        });

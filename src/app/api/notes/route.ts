@@ -107,7 +107,7 @@ async function callGroq(summaryContext: string, key: string, language: string = 
       method: "POST",
       headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [{ role: "system", content: buildNotesPrompt(language) }, { role: "user", content: "Video Content:\n\n" + summaryContext }],
         temperature: 0.7,
         max_tokens: 8000,
